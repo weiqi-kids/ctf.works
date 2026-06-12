@@ -1,0 +1,57 @@
+# ForcAD 設定範本 — A/D CTF 攻防工坊計分主機(ROLE G)
+# 值對齊 ../topology.yml(forcad / hosts / services)與 CONTRACTS.md §1。
+# 實際部署時複製為 config.yml,並以 ./control.py setup 初始化。
+
+# ── game:賽制與計分參數 ───────────────────────────────────────────────
+game:
+  # mode: classic 經典 A/D(每 round 各 team 互打、checker 種/取 flag)
+  mode: classic
+  # round_time:每 round 秒數,對齊 topology.yml forcad.round_time
+  round_time: 60
+  # start_time:比賽起始時間(ISO 8601);部署前改成實際開賽時刻
+  start_time: '2026-06-12 10:00:00'
+  # timezone:時區
+  timezone: 'Asia/Taipei'
+  # default_score:每 service 每 team 初始攻防分
+  default_score: 2500
+  # flag_lifetime:flag 存活 round 數,對齊 topology.yml forcad.flag_lifetime
+  flag_lifetime: 5
+  # game_hardness / inflation:ForcAD 計分曲線參數(採官方預設)
+  game_hardness: 3000.0
+  inflation: true
+
+# ── tasks:三個漏洞服務,各一個 checker ────────────────────────────────
+# checker 路徑相對於 checkers/;checker_type: pfr(提供 public flag data = attack_data)。
+tasks:
+  - name: notes
+    checker: notes/checker.py
+    gets: 1
+    puts: 1
+    places: 1
+    checker_timeout: 15
+    checker_type: pfr
+
+  - name: filelocker
+    checker: filelocker/checker.py
+    gets: 1
+    puts: 1
+    places: 1
+    checker_timeout: 15
+    checker_type: pfr
+
+  - name: vault
+    checker: vault/checker.py
+    gets: 1
+    puts: 1
+    places: 1
+    checker_timeout: 15
+    checker_type: pfr
+
+# ── teams:依 topology.yml 的 defense(team ①)+ attackers(team ②)──────
+# 提交 token 由 ForcAD ./control.py print_tokens 產生,不放進 repo(見 topology.yml)。
+teams:
+  - name: defense
+    ip: 10.80.1.1
+    highlighted: true
+  - name: attack-1
+    ip: 10.80.2.1
