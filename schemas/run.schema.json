@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "run",
+  "type": "object",
+  "required": ["run_id", "fingerprint", "defense", "attack_intel", "timeseries"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "kind": {"type": "string", "enum": ["normal", "portability"]},
+    "fingerprint": {
+      "type": "object",
+      "required": ["forcad", "defender", "attackers"],
+      "properties": {
+        "image_hash": {"type": "string"},
+        "service_commit": {"type": "string"},
+        "forcad": {
+          "type": "object",
+          "required": ["round_time", "flag_lifetime"],
+          "properties": {
+            "round_time": {"type": "integer"},
+            "flag_lifetime": {"type": "integer"}
+          }
+        },
+        "defender": {
+          "type": "object",
+          "required": ["model", "recipe"],
+          "properties": {
+            "model": {"type": "string"},
+            "recipe": {"type": "string"}
+          }
+        },
+        "attackers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["model"],
+            "properties": {
+              "model": {"type": "string"},
+              "cli": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "defense": {
+      "type": "object",
+      "required": ["flags_held_pct", "sla_uptime_pct"],
+      "properties": {
+        "flags_held_pct": {"type": "number"},
+        "sla_uptime_pct": {"type": "number"},
+        "patch_effective": {"type": "object", "additionalProperties": {"type": "boolean"}},
+        "self_own_count": {"type": "integer"},
+        "nopatch_baseline_flags_lost": {"type": "integer"}
+      }
+    },
+    "attack_intel": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["model", "service", "method", "round"],
+        "properties": {
+          "model": {"type": "string"},
+          "service": {"type": "string"},
+          "method": {"type": "string"},
+          "round": {"type": "integer"}
+        }
+      }
+    },
+    "timeseries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["round", "board", "attack_events", "defense_events"],
+        "properties": {
+          "round": {"type": "integer"},
+          "board": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["team", "service", "status", "stolen"],
+              "properties": {
+                "team": {"type": "string"},
+                "service": {"type": "string"},
+                "status": {"type": "string", "enum": ["OK", "MUMBLE", "CORRUPT", "DOWN"]},
+                "stolen": {"type": "boolean"}
+              }
+            }
+          },
+          "attack_events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["model", "service", "method", "victim"],
+              "properties": {
+                "model": {"type": "string"},
+                "service": {"type": "string"},
+                "method": {"type": "string"},
+                "victim": {"type": "string"}
+              }
+            }
+          },
+          "defense_events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["service", "action"],
+              "properties": {
+                "service": {"type": "string"},
+                "action": {"type": "string"},
+                "version_bump": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

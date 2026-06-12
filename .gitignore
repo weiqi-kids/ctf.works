@@ -7,6 +7,10 @@
 # local Claude Code settings
 .claude/settings.local.json
 
+# Python venv
+.venv/
+__pycache__/
+
 # Astro / Node
 node_modules/
 dist/
