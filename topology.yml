@@ -1,0 +1,25 @@
+# 跨主機共用拓樸定義 — 各角色設定檔以此為單一事實來源
+# 隔離網段、無對外 egress(見 CTF_SPEC.md §1.4)
+# 注意:team 提交 token 由 ForcAD `./control.py print_tokens` 產生,不放進 repo
+
+flag_format: '[A-Z0-9]{31}='
+
+hosts:
+  gameserver:            # ROLE G 計分主機(ForcAD)
+    ip: 10.80.0.2
+    scoreboard_port: 8080
+    flag_submit_port: 31337   # ForcAD flag 接收埠,實際值以 ForcAD config 為準
+  defense:               # ROLE D 防禦主機(team ①)
+    ip: 10.80.1.1
+  attackers:             # ROLE A 攻擊主機(team ②,可多台、各跑不同模型)
+    - name: attack-1
+      ip: 10.80.2.1
+
+services:                # 漏洞服務埠(見 CTF_SPEC.md §1.6)
+  notes: 8080
+  filelocker: 9090
+  vault: 10000
+
+forcad:
+  round_time: 60         # 秒
+  flag_lifetime: 5       # round
