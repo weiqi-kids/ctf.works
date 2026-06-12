@@ -20,3 +20,7 @@ dist/
 .env
 .env.*
 *.token
+
+# 服務 runtime 狀態與攻擊情報 runtime 輸出(非原始碼)
+services/*/data/
+attack/intel/*.jsonl

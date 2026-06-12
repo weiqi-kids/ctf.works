@@ -1,0 +1,2 @@
+# filelocker 只用 Python 標準庫(http.server),無第三方依賴。
+# 此檔留空以宣告「零依賴」,釘住執行環境只需 Python 3.x。
