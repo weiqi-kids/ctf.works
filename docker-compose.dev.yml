@@ -1,0 +1,17 @@
+# 本機整合測試用 — 把三個漏洞服務一起拉起來,供 checker / exploit / self_verify 對打。
+# 不含 ForcAD(計分主機有自己的 compose,見 gameserver/)。
+# 用法:docker compose -f docker-compose.dev.yml up --build
+# 警告:這些服務故意埋洞,只在隔離環境跑,切勿對外。
+services:
+  notes:
+    build: ./services/notes
+    ports:
+      - "8080:8080"
+  filelocker:
+    build: ./services/filelocker
+    ports:
+      - "9090:9090"
+  vault:
+    build: ./services/vault
+    ports:
+      - "10000:10000"

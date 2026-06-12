@@ -18,4 +18,28 @@
 
 每個角色資料夾自包含——整個資料夾搬到目標主機即可部署。
 
+## 本機運行
+
+**公開網站(astro)**
+```bash
+cd astro
+npm install
+npm run dev      # 開 http://localhost:4321/ctf.works/(埠被占會自動往後)
+npm run build    # 產靜態站到 astro/dist(GitHub Pages 用)
+```
+網站只讀 `data/` 的靜態資料(目前是 mock,符合 `schemas/` 契約)。
+
+**三個漏洞服務(整合測試)**
+```bash
+docker compose -f docker-compose.dev.yml up --build   # notes:8080 filelocker:9090 vault:10000
+```
+
+**資料契約驗證**
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
+.venv/bin/python tools/validate_data.py               # data/ mock 對 schemas/ 驗證
+```
+
+跨元件介面凍結在 [`CONTRACTS.md`](CONTRACTS.md);設計與計畫見 `docs/superpowers/`。
+
 > ⚠️ 本 repo 的漏洞服務是**故意埋洞**的教學/鍛造用途,只在隔離網段運行,切勿部署到公開環境。
