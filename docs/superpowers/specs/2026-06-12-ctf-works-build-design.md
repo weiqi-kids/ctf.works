@@ -13,7 +13,7 @@
 - `gameserver/` — 三個 checker + `config.yml.example`
 - `defense/defense-recipe/` — PROMPT.md / run.sh / self_verify / playbook.md(種子)
 - `attack/` — 攻擊 prompt + harness 骨架 + 三支 exploit PoC
-- `astro/` — 採用導向靜態網站(讀 mock 資料):讓人取得並運行防禦配方
+- `astro/` — 採用導向靜態網站(讀 mock 資料):首頁直給 prompt+套用步驟、配方依模型分軌、攻防歷史 + 完整回放播放器
 - `data/` — 符合 §3.2 契約的 mock 資料
 - 根目錄 `docker-compose.dev.yml` + 整合驗證報告
 
@@ -43,7 +43,7 @@ Phase 0 (序列) → Phase 1 (平行 7 agents) → Phase 2 (序列)
 | gameserver | checkers/{notes,filelocker,vault}/checker.py + requirements.txt + config.yml.example + README | 服務 API + ForcAD checklib 事實 |
 | defense-recipe | PROMPT.md + run.sh + self_verify/ + playbook.md(種子) | 三洞的安全堵法 |
 | attack | prompts/ + harness/ + 三支 exploit PoC + README | 三洞的 exploit 路徑 |
-| astro | 採用導向網站(5 路由) + astro.config | 站點地圖 + data mock |
+| astro | 採用導向網站(6 路由,含回放播放器) + astro.config | 站點地圖 + data mock(含回放資料) |
 
 ### Phase 2 — 整合驗證(序列)
 
@@ -84,24 +84,44 @@ Phase 0 (序列) → Phase 1 (平行 7 agents) → Phase 2 (序列)
 - 三支可動 exploit PoC,兼作 Phase 2 驗證工具。
 - 攻擊情報記錄:每次得手記「模型/方法/服務/round」→ 輸出 B。
 
-## 6. astro 站點地圖(採用導向,Phase 0 凍結)
+## 6. astro 站點地圖(採用導向 + 歷史 + 回放,Phase 0 凍結)
 
-**定位修正**:SPEC §3.1 把網站定為「介紹/展示」。本設計改為**採用導向**——網站的主要工作是**讓人取得並運行防禦配方(prompt+playbook)**,成效/可攜性/攻擊情報降為支撐「值得採用」的信任證據。對外可複製的核心是 `PROMPT.md`(防禦 agent 的腦)+ `playbook.md`(攻法→安全堵法的記憶)。
+**定位修正**:SPEC §3.1 把網站定為「介紹/展示」。本設計改為**採用導向**——主要工作是**讓人取得並運行防禦配方(prompt+playbook)**,成效/可攜性/攻擊情報降為支撐「值得採用」的信任證據。對外可複製的核心是 `PROMPT.md`(防禦 agent 的腦)+ `playbook.md`(攻法→安全堵法的記憶)。
 
-採用脊椎:**看懂 → 信任(證據)→ 取得 → 運行**。五條路由:
+**統一敘事**:鍛造軌跡(版本史)↔ 每版背後產生它的 run ↔ 那場 run 的完整回放。版本史就是歷史;點任一版進它的 run 看回放。
+
+**模型為第一級維度**:防禦方/攻擊方可為不同 AI(Claude / OpenAI…)與不同模型。配方**依模型分軌**,每模型有自己的版本軌跡;訪客可挑自己用的模型拿對應 prompt。
+
+採用脊椎:**看懂 → 信任(證據)→ 取得 → 運行**。六條路由:
 
 | 路由 | 頁面 | 讀哪些資料 | 性質 |
 |---|---|---|---|
-| `/` | 首頁:理念 + 一句話定位「可搬到你主機的防禦配方」+ 明確 CTA(取得/看怎麼用)。§1.1/1.3/1.4 拓樸 mermaid | 無 | 靜態 |
-| `/recipe/`(主角) | ①配方是什麼 ②**如何取得**(clone `defense-recipe/`)③**如何運行**(前置/run.sh/會碰你主機什麼/隔離建議)④**它已經會擋什麼**(playbook 攻法清單)⑤版本+鍛造軌跡曲線(信任證據);可展開單版 PROMPT/playbook + 與上版 diff | `data/recipe/v*/`、`data/recipe/trajectory.json` | 資料 |
-| `/evidence/` | 信任證據(合併原 defense+portability):守住率、SLA over rounds、修補成效、自殘、**不補基線對照**、搬乾淨主機仍守得住——一條「有效且可複製」的敘事 | `data/runs/*.json`(含 portability 場次) | 資料 |
-| `/attack/` | 攻擊情報 B(次要):定位成「捶打它的壓力來源」,模型×方法榜單 + 攻法時間軸 | `data/attack_intel.json` + runs | 資料 |
-| `/process/` | 流程說明:flag 生命週期/攻防 §1.5(mermaid sequence),輔助理解運作 | 無 | 靜態 |
+| `/` | 首頁:理念一句話 + **直接秀 prompt 摘要 + 3 步套用到你主機** + 模型切換(拿你模型的配方)+ CTA。§1.1/1.3/1.4 拓樸 mermaid | `data/recipe/<model>/` 最新版 | 資料 |
+| `/recipe/`(主角) | **依模型分軌**:完整 PROMPT/playbook、版本+鍛造軌跡曲線、**如何取得**(clone `defense-recipe/`)、**如何運行**(前置/run.sh/會碰你主機什麼/隔離)、**已會擋什麼**(playbook 攻法清單);可展開單版 + 與上版 diff;每版連到產生它的 run | `data/recipe/<model>/v*/`、`trajectory.json` | 資料 |
+| `/runs/` | 攻防歷史:所有場次列表,依**模型 / 配方版本 / 日期**篩 | `data/runs/*.json`(索引) | 資料 |
+| `/runs/[run_id]/` | **攻防回放(完整播放器)**:可拖曳 round 的播放器,看棋盤狀態(team×服務×狀態×偷/守)逐 round 演進 + 版本邊界的 prompt/playbook diff + 攻擊方得手方法/防禦方補洞事件 | `data/runs/<run_id>.json`(含 timeseries 事件) | 資料 |
+| `/evidence/` | 信任證據(合併 defense+portability):守住率、SLA over rounds、修補成效、自殘、**不補基線對照**、搬乾淨主機仍守得住 | `data/runs/*.json` | 資料 |
+| `/attack/` | 攻擊情報 B(次要):「捶打它的壓力來源」,模型×方法榜單 + 攻法時間軸 | `data/attack_intel.json` + runs | 資料 |
 
-- 頂部 nav 橫跨五頁;`/recipe/` 是唯一主角(成品 A);`/attack/`(輸出 B)明確次要。
-- `/recipe/` 的「如何取得/如何運行」用可複製貼上的程式碼區塊;playbook 攻法清單讓訪客知道「拿到手就有哪些戰力」。
-- Content collections:`recipe`(md)、`runs`(JSON)、`attackIntel`(JSON)、`trajectory`(JSON)。
+- 頂部 nav;`/recipe/` 唯一主角(成品 A);`/attack/`(輸出 B)明確次要。`/process/` 流程圖解併入 `/`/`/runs/` 視需要呈現。
+- `/recipe/` 與 `/` 的「取得/運行」用可複製貼上程式碼區塊;playbook 攻法清單讓訪客知道「拿到手就有哪些戰力」。
+- 回放播放器是網站最重的互動元件,client-side 渲染 timeseries;為 astro agent 的核心交付。
+- Content collections:`recipe`(md,依模型)、`runs`(JSON)、`attackIntel`(JSON)、`trajectory`(JSON)。
 - 建站用 `frontend-design` skill,美術風格屆時定。
+
+### 6.1 資料契約擴充(Phase 0 凍結,擴充 SPEC §3.2)
+
+為支撐模型維度、版本↔run 連結、完整回放,在 §3.2 基礎上擴充:
+
+- **防禦方模型入帳**:`fingerprint.defender` 加 `model`(防禦方是哪個 AI/模型)。原本只有攻擊方記 model,此為破綻修補。
+- **配方依模型分軌**:目錄改 `data/recipe/<model>/v*/PROMPT.md|playbook.md`;`trajectory.json` 每筆帶 `model`、`version`、`run_id`、`effectiveness`、`diff_summary`——版本史即鍛造軌跡,每版可追到產生它的 run。
+- **timeseries 擴充為帶事件(回放燃料)**:每 round 除 `status`/`stolen`,加
+  - `board`:該 round 各 (team, 服務) 的狀態快照(供播放器畫棋盤)。
+  - `attack_events`:`{model, service, method, victim, round}`——誰用什麼方法偷哪個服務。
+  - `defense_events`:`{service, action, round, version_bump?}`——補了哪個洞 / 版本切換點。
+- **回放資料自洽**:mock 資料要造到播放器能完整播放(逐 round board + 事件 + 版本邊界 diff);Phase 0 種一場資料豐富的 run 當樣本。
+
+> 注意:`board`/`attack_events`/`defense_events` 真實來源是 [FORCAD-SQL]+[AGENT-LOG] 合併,需 agent 端埋對應日誌(留部署期);本輪以 mock 滿足契約。
 
 ### 部署設定(可快速切換網域)
 
@@ -119,3 +139,4 @@ Phase 0 (序列) → Phase 1 (平行 7 agents) → Phase 2 (序列)
 - **vault(C pwn)** 最易出錯:OOB read 設計已盡量降風險,但 C + TCP + checker 一致性仍是最難的一塊,Phase 2 重點驗。
 - **ForcAD 介面假設**:checklib/config 必須以官方文件為準,不可憑記憶(SPEC 強制)。Phase 0 未 fetch 核對前不得開 checker agent。
 - **三方 client 漂移**:checker、exploit、self_verify 各自實作「與服務對話」,靠 Phase 0 凍結的精確契約防漂移。
+- **回放播放器 + 事件資料**:完整播放器是 astro agent 最重的互動件;且 `board`/`attack_events`/`defense_events` 的真實來源(FORCAD-SQL+AGENT-LOG 合併)留部署期,本輪靠 mock。風險在 mock 契約若不夠周全,部署期接真實資料要返工——故 Phase 0 的 timeseries 事件 schema 要一次定到位。
