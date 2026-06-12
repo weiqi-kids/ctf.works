@@ -99,13 +99,16 @@ Phase 0 (序列) → Phase 1 (平行 7 agents) → Phase 2 (序列)
 | `/` | 首頁:理念一句話 + **直接秀 prompt 摘要 + 3 步套用到你主機** + 模型切換(拿你模型的配方)+ CTA。§1.1/1.3/1.4 拓樸 mermaid | `data/recipe/<model>/` 最新版 | 資料 |
 | `/recipe/`(主角) | **依模型分軌**:完整 PROMPT/playbook、版本+鍛造軌跡曲線、**如何取得**(clone `defense-recipe/`)、**如何運行**(前置/run.sh/會碰你主機什麼/隔離)、**已會擋什麼**(playbook 攻法清單);可展開單版 + 與上版 diff;每版連到產生它的 run | `data/recipe/<model>/v*/`、`trajectory.json` | 資料 |
 | `/runs/` | 攻防歷史:所有場次列表,依**模型 / 配方版本 / 日期**篩 | `data/runs/*.json`(索引) | 資料 |
-| `/runs/[run_id]/` | **攻防回放(完整播放器)**:可拖曳 round 的播放器,看棋盤狀態(team×服務×狀態×偷/守)逐 round 演進 + 版本邊界的 prompt/playbook diff + 攻擊方得手方法/防禦方補洞事件 | `data/runs/<run_id>.json`(含 timeseries 事件) | 資料 |
+| `/runs/[run_id]/` | **攻防回放(d3.js 完整播放器)**:可拖曳 round 的播放器,看棋盤狀態(team×服務×狀態×偷/守)逐 round 演進 + 版本邊界的 prompt/playbook diff + 攻擊方得手方法/防禦方補洞事件 | `data/runs/<run_id>.json`(含 timeseries 事件) | 資料 |
 | `/evidence/` | 信任證據(合併 defense+portability):守住率、SLA over rounds、修補成效、自殘、**不補基線對照**、搬乾淨主機仍守得住 | `data/runs/*.json` | 資料 |
 | `/attack/` | 攻擊情報 B(次要):「捶打它的壓力來源」,模型×方法榜單 + 攻法時間軸 | `data/attack_intel.json` + runs | 資料 |
 
 - 頂部 nav;`/recipe/` 唯一主角(成品 A);`/attack/`(輸出 B)明確次要。`/process/` 流程圖解併入 `/`/`/runs/` 視需要呈現。
 - `/recipe/` 與 `/` 的「取得/運行」用可複製貼上程式碼區塊;playbook 攻法清單讓訪客知道「拿到手就有哪些戰力」。
-- 回放播放器是網站最重的互動元件,client-side 渲染 timeseries;為 astro agent 的核心交付。
+- **回放播放器用 d3.js**,是網站最重的互動元件、astro agent 的核心交付。整合方式:
+  - Astro **client island**(`client:only` 或 `client:load`),讀靜態 `data/runs/<run_id>.json`;GitHub Pages 純靜態相容。
+  - 只 import 需要的 d3 子模組(`d3-scale`/`d3-selection`/`d3-transition`/`d3-shape`/`d3-array`),不引整包,省 bundle。
+- **視覺化分工**:mermaid 畫靜態結構圖(拓樸、§1.5 流程 sequence);d3.js 畫資料驅動互動(回放播放器、`/recipe/` 軌跡曲線、`/evidence/` SLA over rounds)。
 - Content collections:`recipe`(md,依模型)、`runs`(JSON)、`attackIntel`(JSON)、`trajectory`(JSON)。
 - 建站用 `frontend-design` skill,美術風格屆時定。
 
