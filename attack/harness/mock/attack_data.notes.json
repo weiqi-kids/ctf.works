@@ -1,0 +1,12 @@
+{
+  "round": 1,
+  "_comment": "離線 mock attack_data:模擬計分主機 /api/client/attack_data 的回傳。notes 服務 attack_data = victim 的 note_id。示範時先用合法 API 種一個含 flag 的 note,把這裡的 attack_data 改成該 note_id 即可。",
+  "targets": [
+    {
+      "service": "notes",
+      "attack_data": 2,
+      "round": 1,
+      "victim_team": "defense-mock"
+    }
+  ]
+}
