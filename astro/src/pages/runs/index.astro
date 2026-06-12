@@ -1,0 +1,310 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getRuns, modelLabel, pct } from '../../lib/data';
+
+const base = import.meta.env.BASE_URL;
+const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+
+const runs = getRuns();
+
+const rows = runs.map((r) => {
+  // 日期 = run_id 前 10 碼（YYYY-MM-DD）
+  const date = r.run_id.slice(0, 10);
+  const stolen = r.timeseries.some((t) => t.attack_events.length > 0);
+  return {
+    run_id: r.run_id,
+    date,
+    kind: r.kind ?? 'normal',
+    defModel: r.fingerprint.defender.model,
+    defModelLabel: modelLabel(r.fingerprint.defender.model),
+    recipe: r.fingerprint.defender.recipe,
+    attackers: r.fingerprint.attackers
+      .map((a) => modelLabel(a.model))
+      .join(', '),
+    held: r.defense.flags_held_pct,
+    sla: r.defense.sla_uptime_pct,
+    rounds: r.timeseries.length
+      ? Math.max(...r.timeseries.map((t) => t.round))
+      : 0,
+    attacked: stolen,
+  };
+});
+
+const models = [...new Set(rows.map((r) => r.defModel))];
+const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
+---
+
+<Layout title="攻防歷史 — FORGE ⚒ 攻防工坊" active="runs">
+  <section class="wrap runs-page">
+    <div class="page-head rise">
+      <span class="kicker">攻防歷史 · RUN INDEX</span>
+      <h1 class="page-title">攻防歷史</h1>
+      <p class="muted page-lead">
+        每一場都是配方鍛造軌跡的一個錨點。依模型 / 配方版本 / 日期篩,點任一場看完整回放。
+      </p>
+    </div>
+
+    <!-- 篩選列 -->
+    <div class="filters rise" data-filters>
+      <div class="filter-group">
+        <span class="f-label mono">模型</span>
+        <button class="chip is-active" data-filter="model" data-value="all">
+          全部
+        </button>
+        {
+          models.map((m) => (
+            <button class="chip" data-filter="model" data-value={m}>
+              {modelLabel(m)}
+            </button>
+          ))
+        }
+      </div>
+      <div class="filter-group">
+        <span class="f-label mono">配方版本</span>
+        <button class="chip is-active" data-filter="recipe" data-value="all">
+          全部
+        </button>
+        {
+          recipes.map((v) => (
+            <button class="chip" data-filter="recipe" data-value={v}>
+              {v}
+            </button>
+          ))
+        }
+      </div>
+      <div class="filter-group">
+        <span class="f-label mono">類型</span>
+        <button class="chip is-active" data-filter="kind" data-value="all">
+          全部
+        </button>
+        <button class="chip" data-filter="kind" data-value="normal">normal</button>
+        <button class="chip" data-filter="kind" data-value="portability">
+          portability
+        </button>
+      </div>
+    </div>
+
+    <!-- 卡片列 -->
+    <div class="run-cards" data-run-list>
+      {
+        rows.map((r) => (
+          <a
+            class="run-card card corner-marks"
+            href={u(`/runs/${r.run_id}/`)}
+            data-row
+            data-model={r.defModel}
+            data-recipe={r.recipe}
+            data-kind={r.kind}
+          >
+            <div class="rc-top">
+              <span class="rc-id mono">{r.run_id}</span>
+              <span
+                class={`tag mono ${r.kind === 'portability' ? 'tag-ember' : ''}`}
+              >
+                {r.kind}
+              </span>
+            </div>
+            <div class="rc-vs mono">
+              <span class="rc-def">
+                🛡 {r.defModelLabel}
+                <span class="faint"> · {r.recipe}</span>
+              </span>
+              <span class="rc-x faint">vs</span>
+              <span class="rc-atk">🗡 {r.attackers}</span>
+            </div>
+            <div class="rc-metrics">
+              <div class="rc-m">
+                <span class="metric-val is-ember">{pct(r.held)}</span>
+                <span class="metric-label">守住率</span>
+              </div>
+              <div class="rc-m">
+                <span class="metric-val">{pct(r.sla)}</span>
+                <span class="metric-label">SLA</span>
+              </div>
+              <div class="rc-m">
+                <span class="metric-val">{r.rounds}</span>
+                <span class="metric-label">rounds</span>
+              </div>
+            </div>
+            <div class="rc-foot mono">
+              {r.attacked ? (
+                <span class="rc-flag stolen">● 有攻擊事件</span>
+              ) : (
+                <span class="rc-flag clean">● 全程守住</span>
+              )}
+              <span class="rc-go ember">看回放 →</span>
+            </div>
+          </a>
+        ))
+      }
+    </div>
+    <p class="no-match faint mono" data-no-match style="display:none">
+      — 沒有符合篩選的場次 —
+    </p>
+  </section>
+
+  <style>
+    .runs-page {
+      padding-top: clamp(2rem, 5vw, 3.5rem);
+    }
+    .page-head {
+      margin-bottom: 1.8rem;
+    }
+    .page-title {
+      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      margin: 0.6rem 0 0.8rem;
+    }
+    .page-lead {
+      max-width: 620px;
+    }
+
+    .filters {
+      display: grid;
+      gap: 0.9rem;
+      margin-bottom: 1.8rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid var(--c-slate);
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .f-label {
+      font-size: 0.7rem;
+      color: var(--c-faint);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      min-width: 70px;
+    }
+    .chip {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      padding: 0.35rem 0.7rem;
+      background: var(--c-steel);
+      border: 1px solid var(--c-slate);
+      border-radius: 2px;
+      color: var(--c-mist);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip:hover {
+      border-color: var(--c-ash);
+      color: var(--c-bone);
+    }
+    .chip.is-active {
+      border-color: var(--c-ember);
+      color: var(--c-ember-bright);
+      background: var(--c-coal-glow);
+    }
+
+    .run-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.1rem;
+    }
+    .run-card {
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      transition: border-color 0.18s, transform 0.18s;
+    }
+    .run-card:hover {
+      border-color: var(--c-ember);
+      transform: translateY(-2px);
+    }
+    .rc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .rc-id {
+      font-size: 0.92rem;
+      color: var(--c-bone);
+      font-weight: 600;
+    }
+    .rc-vs {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.78rem;
+      flex-wrap: wrap;
+    }
+    .rc-x {
+      font-size: 0.7rem;
+    }
+    .rc-metrics {
+      display: flex;
+      gap: 1.4rem;
+      padding: 0.6rem 0;
+      border-top: 1px solid var(--c-slate);
+      border-bottom: 1px solid var(--c-slate);
+    }
+    .rc-m {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .rc-m .metric-val {
+      font-size: 1.5rem;
+    }
+    .rc-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.74rem;
+    }
+    .rc-flag.stolen {
+      color: var(--c-stolen);
+    }
+    .rc-flag.clean {
+      color: var(--c-hold);
+    }
+    .rc-go {
+      font-weight: 600;
+    }
+    .no-match {
+      text-align: center;
+      padding: 3rem 0;
+    }
+  </style>
+
+  <script>
+    const state = { model: 'all', recipe: 'all', kind: 'all' };
+    const filters = document.querySelector('[data-filters]');
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-row]'),
+    );
+    const noMatch = document.querySelector<HTMLElement>('[data-no-match]');
+
+    function apply() {
+      let visible = 0;
+      for (const row of rows) {
+        const ok =
+          (state.model === 'all' ||
+            row.getAttribute('data-model') === state.model) &&
+          (state.recipe === 'all' ||
+            row.getAttribute('data-recipe') === state.recipe) &&
+          (state.kind === 'all' ||
+            row.getAttribute('data-kind') === state.kind);
+        row.style.display = ok ? '' : 'none';
+        if (ok) visible++;
+      }
+      if (noMatch) noMatch.style.display = visible ? 'none' : '';
+    }
+
+    filters?.querySelectorAll<HTMLElement>('.chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const dim = chip.getAttribute('data-filter') as keyof typeof state;
+        const val = chip.getAttribute('data-value')!;
+        state[dim] = val;
+        filters
+          .querySelectorAll(`.chip[data-filter="${dim}"]`)
+          .forEach((c) => c.classList.toggle('is-active', c === chip));
+        apply();
+      });
+    });
+  </script>
+</Layout>

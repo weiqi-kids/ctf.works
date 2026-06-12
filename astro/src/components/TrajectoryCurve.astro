@@ -1,0 +1,166 @@
+---
+// 鍛造軌跡曲線（d3）：成效隨版本演進。
+// 每個 ● 可點 → 跳該版的 run 回放（僅當該 run 已匯出時）。
+import type { TrajectoryVersion } from '../lib/data';
+interface Props {
+  versions: TrajectoryVersion[];
+  // 各版的 run_id 是否有匯出檔（決定可否點擊跳回放）
+  runExistsMap: Record<string, boolean>;
+  runHref: string; // base + /runs/  （末尾不含 run_id）
+}
+const { versions, runExistsMap, runHref } = Astro.props;
+const payload = JSON.stringify({ versions, runExistsMap, runHref });
+---
+
+<div class="traj" data-traj>
+  <script type="application/json" data-traj-data set:html={payload} />
+  <svg data-traj-svg class="traj-svg"></svg>
+  <div class="traj-cap mono faint">
+    守住率隨鍛造版本上升 · 點 ● 跳該版攻防回放（無匯出 run 的點不可點）
+  </div>
+</div>
+
+<style>
+  .traj-svg {
+    width: 100%;
+    height: 200px;
+    display: block;
+  }
+  .traj-cap {
+    font-size: 0.7rem;
+    margin-top: 0.5rem;
+  }
+  :global(.traj-dot) {
+    cursor: default;
+    transition: r 0.15s;
+  }
+  :global(.traj-dot.linked) {
+    cursor: pointer;
+  }
+  :global(.traj-dot.linked:hover) {
+    r: 8;
+  }
+</style>
+
+<script>
+  import { scaleLinear, scalePoint } from 'd3-scale';
+  import { select } from 'd3-selection';
+  import { line } from 'd3-shape';
+
+  interface V {
+    version: string;
+    run_id: string;
+    flags_held_pct: number;
+    diff_summary: string;
+  }
+
+  function initTraj(root: HTMLElement) {
+    const dataEl = root.querySelector<HTMLElement>('[data-traj-data]');
+    const svgEl = root.querySelector<SVGSVGElement>('[data-traj-svg]');
+    if (!dataEl || !svgEl) return;
+    const {
+      versions,
+      runExistsMap,
+      runHref,
+    }: { versions: V[]; runExistsMap: Record<string, boolean>; runHref: string } =
+      JSON.parse(dataEl.textContent || '{}');
+    if (!versions.length) return;
+
+    const W = 720,
+      H = 200,
+      m = { t: 28, r: 24, b: 40, l: 44 };
+    svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const svg = select(svgEl);
+
+    const x = scalePoint<string>()
+      .domain(versions.map((v) => v.version))
+      .range([m.l, W - m.r])
+      .padding(0.5);
+    const y = scaleLinear().domain([0, 1]).range([H - m.b, m.t]);
+
+    // 格線
+    [0, 0.25, 0.5, 0.75, 1].forEach((t) => {
+      svg
+        .append('line')
+        .attr('x1', m.l)
+        .attr('x2', W - m.r)
+        .attr('y1', y(t))
+        .attr('y2', y(t))
+        .attr('stroke', '#262b33')
+        .attr('stroke-width', 1);
+      svg
+        .append('text')
+        .attr('x', m.l - 8)
+        .attr('y', y(t) + 3)
+        .attr('text-anchor', 'end')
+        .attr('fill', '#767e8c')
+        .attr('font-size', 10)
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .text(`${Math.round(t * 100)}%`);
+    });
+
+    const ln = line<V>()
+      .x((d) => x(d.version)!)
+      .y((d) => y(d.flags_held_pct));
+
+    // 餘燼漸層線
+    svg
+      .append('path')
+      .attr('d', ln(versions) || '')
+      .attr('fill', 'none')
+      .attr('stroke', '#ff5a1f')
+      .attr('stroke-width', 2.5)
+      .attr('stroke-linecap', 'round');
+
+    versions.forEach((v) => {
+      const cx = x(v.version)!;
+      const cy = y(v.flags_held_pct);
+      const linked = !!runExistsMap[v.run_id];
+
+      const g = svg.append('g');
+      const dot = g
+        .append('circle')
+        .attr('class', 'traj-dot' + (linked ? ' linked' : ''))
+        .attr('cx', cx)
+        .attr('cy', cy)
+        .attr('r', 6)
+        .attr('fill', linked ? '#ff7a3c' : '#3a414c')
+        .attr('stroke', '#0a0b0d')
+        .attr('stroke-width', 2);
+
+      if (linked) {
+        const href = `${runHref.replace(/\/$/, '')}/${v.run_id}/`;
+        dot.on('click', () => (window.location.href = href));
+        dot.append('title').text(`${v.version} → 看回放 ${v.run_id}`);
+      } else {
+        dot.append('title').text(`${v.version} · ${v.run_id}（無匯出 run）`);
+      }
+
+      // 版本標籤
+      svg
+        .append('text')
+        .attr('x', cx)
+        .attr('y', H - 22)
+        .attr('text-anchor', 'middle')
+        .attr('fill', linked ? '#ff7a3c' : '#aab2bf')
+        .attr('font-size', 12)
+        .attr('font-weight', 600)
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .text(v.version);
+      // 百分比標籤
+      svg
+        .append('text')
+        .attr('x', cx)
+        .attr('y', cy - 12)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#e8eaed')
+        .attr('font-size', 11)
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .text(`${Math.round(v.flags_held_pct * 100)}%`);
+    });
+  }
+
+  document
+    .querySelectorAll<HTMLElement>('[data-traj]')
+    .forEach((el) => initTraj(el));
+</script>

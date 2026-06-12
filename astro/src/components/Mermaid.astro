@@ -1,0 +1,59 @@
+---
+// 靜態結構圖：mermaid（client-side 渲染，CDN ESM）。
+// 用於首頁工坊主迴圈拓樸 / 流程 sequence。
+interface Props {
+  chart: string;
+  id?: string;
+}
+const { chart, id = 'mmd-' + Math.random().toString(36).slice(2, 9) } = Astro.props;
+---
+
+<div class="mermaid-box">
+  <pre class="mermaid-src" data-mermaid-id={id} style="display:none">{chart}</pre>
+  <div class="mermaid-out" id={id}></div>
+</div>
+
+<script>
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      darkMode: true,
+      background: '#121418',
+      primaryColor: '#1b1e24',
+      primaryBorderColor: '#3a414c',
+      primaryTextColor: '#e8eaed',
+      lineColor: '#5d6675',
+      secondaryColor: '#2a1408',
+      tertiaryColor: '#121418',
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: '13px',
+      actorBorder: '#ff5a1f',
+      actorBkg: '#1b1e24',
+      actorTextColor: '#e8eaed',
+      signalColor: '#aab2bf',
+      signalTextColor: '#aab2bf',
+    },
+  });
+
+  async function render() {
+    const blocks = document.querySelectorAll<HTMLElement>('.mermaid-src');
+    for (const block of blocks) {
+      const id = block.getAttribute('data-mermaid-id')!;
+      const out = document.getElementById(id);
+      if (!out || out.dataset.done) continue;
+      try {
+        const { svg } = await mermaid.render(id + '-svg', block.textContent || '');
+        out.innerHTML = svg;
+        out.dataset.done = '1';
+      } catch (err) {
+        out.innerHTML =
+          '<pre style="color:#ff3b5c;font-size:.75rem">mermaid render error</pre>';
+        console.error(err);
+      }
+    }
+  }
+  render();
+</script>

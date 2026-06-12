@@ -1,0 +1,181 @@
+---
+// SLA / 守住率 over rounds（d3）— /evidence/ 用。
+// 從某 run 的 timeseries 算每 round 的守住率與 SLA。
+import type { Run } from '../lib/data';
+interface Props {
+  run: Run;
+}
+const { run } = Astro.props;
+const payload = JSON.stringify(run.timeseries ?? []);
+---
+
+<div class="sla" data-sla>
+  <script type="application/json" data-sla-data set:html={payload} />
+  <svg data-sla-svg class="sla-svg"></svg>
+  <div class="sla-legend mono faint">
+    <span><i class="dot dot-held"></i>守住率</span>
+    <span><i class="dot dot-sla"></i>SLA</span>
+    <span><i class="dot dot-stolen"></i>被偷 round</span>
+  </div>
+</div>
+
+<style>
+  .sla-svg {
+    width: 100%;
+    height: 180px;
+    display: block;
+  }
+  .sla-legend {
+    display: flex;
+    gap: 1.2rem;
+    font-size: 0.7rem;
+    margin-top: 0.5rem;
+  }
+  .sla-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .dot-held {
+    background: #38d39f;
+  }
+  .dot-sla {
+    background: #ff5a1f;
+  }
+  .dot-stolen {
+    background: #ff3b5c;
+  }
+</style>
+
+<script>
+  import { scaleLinear } from 'd3-scale';
+  import { select } from 'd3-selection';
+  import { line, area } from 'd3-shape';
+  import { extent } from 'd3-array';
+
+  interface Cell {
+    team: string;
+    status: string;
+    stolen: boolean;
+  }
+  interface Round {
+    round: number;
+    board: Cell[];
+  }
+
+  function expand(ts: Round[]): Round[] {
+    if (!ts.length) return [];
+    const sorted = [...ts].sort((a, b) => a.round - b.round);
+    const byRound = new Map(sorted.map((r) => [r.round, r]));
+    const out: Round[] = [];
+    let last = sorted[0].board;
+    for (let r = sorted[0].round; r <= sorted[sorted.length - 1].round; r++) {
+      const kf = byRound.get(r);
+      if (kf) last = kf.board;
+      out.push({ round: r, board: last });
+    }
+    return out;
+  }
+
+  function initSla(root: HTMLElement) {
+    const dataEl = root.querySelector<HTMLElement>('[data-sla-data]');
+    const svgEl = root.querySelector<SVGSVGElement>('[data-sla-svg]');
+    if (!dataEl || !svgEl) return;
+    const ts: Round[] = JSON.parse(dataEl.textContent || '[]');
+    const frames = expand(ts);
+    if (frames.length < 2) {
+      svgEl.innerHTML =
+        '<text x="10" y="24" fill="#767e8c" font-size="12" font-family="JetBrains Mono">資料點不足以繪圖</text>';
+      return;
+    }
+
+    const data = frames.map((f) => {
+      const def = f.board.filter((c) => c.team === 'defense');
+      const held = def.length ? def.filter((c) => !c.stolen).length / def.length : 1;
+      const sla = def.length
+        ? def.filter((c) => c.status === 'OK').length / def.length
+        : 1;
+      const stolen = def.some((c) => c.stolen);
+      return { round: f.round, held, sla, stolen };
+    });
+
+    const W = 720,
+      H = 180,
+      m = { t: 16, r: 16, b: 28, l: 40 };
+    svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const svg = select(svgEl);
+    const x = scaleLinear()
+      .domain(extent(data, (d) => d.round) as [number, number])
+      .range([m.l, W - m.r]);
+    const y = scaleLinear().domain([0, 1]).range([H - m.b, m.t]);
+
+    [0, 0.5, 1].forEach((t) => {
+      svg
+        .append('line')
+        .attr('x1', m.l)
+        .attr('x2', W - m.r)
+        .attr('y1', y(t))
+        .attr('y2', y(t))
+        .attr('stroke', '#262b33');
+      svg
+        .append('text')
+        .attr('x', m.l - 6)
+        .attr('y', y(t) + 3)
+        .attr('text-anchor', 'end')
+        .attr('fill', '#767e8c')
+        .attr('font-size', 10)
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .text(`${Math.round(t * 100)}%`);
+    });
+
+    const heldArea = area<(typeof data)[0]>()
+      .x((d) => x(d.round))
+      .y0(H - m.b)
+      .y1((d) => y(d.held));
+    svg
+      .append('path')
+      .attr('d', heldArea(data) || '')
+      .attr('fill', 'rgba(56,211,159,0.10)');
+
+    const mk = (key: 'held' | 'sla', color: string, dash?: string) => {
+      const ln = line<(typeof data)[0]>()
+        .x((d) => x(d.round))
+        .y((d) => y(d[key]));
+      const p = svg
+        .append('path')
+        .attr('d', ln(data) || '')
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 2);
+      if (dash) p.attr('stroke-dasharray', dash);
+    };
+    mk('held', '#38d39f');
+    mk('sla', '#ff5a1f', '4 3');
+
+    // 被偷 round 標記
+    data
+      .filter((d) => d.stolen)
+      .forEach((d) => {
+        svg
+          .append('circle')
+          .attr('cx', x(d.round))
+          .attr('cy', y(d.held))
+          .attr('r', 4)
+          .attr('fill', '#ff3b5c')
+          .attr('stroke', '#0a0b0d')
+          .attr('stroke-width', 1.5)
+          .append('title')
+          .text(`round ${d.round}：被偷`);
+      });
+  }
+
+  document
+    .querySelectorAll<HTMLElement>('[data-sla]')
+    .forEach((el) => initSla(el));
+</script>

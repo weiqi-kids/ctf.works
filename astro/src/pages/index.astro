@@ -1,0 +1,446 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Mermaid from '../components/Mermaid.astro';
+import { renderMd } from '../lib/md';
+import {
+  getModels,
+  getRecipesByModel,
+  latestRecipe,
+  getTrajectory,
+  getRuns,
+  modelLabel,
+  pct,
+} from '../lib/data';
+
+const base = import.meta.env.BASE_URL;
+const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+
+const models = getModels();
+const traj = getTrajectory();
+const runs = getRuns();
+
+// 各模型最新版的 prompt + 守住率（首頁第一屏）
+const modelCards = models.map((m) => {
+  const latest = latestRecipe(m);
+  const tModel = traj.models.find((x) => x.model === m);
+  const latestV = tModel?.versions[tModel.versions.length - 1];
+  const playbookList = latest
+    ? latest.playbook
+        .split('\n')
+        .filter((l) => l.startsWith('## '))
+        .map((l) => l.replace(/^##\s*/, '').split('—').pop()?.trim() || l)
+    : [];
+  return {
+    model: m,
+    label: modelLabel(m),
+    version: latest?.version ?? 'v?',
+    prompt: latest?.prompt ?? '',
+    promptHtml: latest ? renderMd(latest.prompt) : '',
+    versionCount: getRecipesByModel(m).length,
+    flagsHeld: latestV?.flags_held_pct ?? null,
+    playbookList,
+  };
+});
+
+const primary = modelCards[0];
+
+// 首屏成效摘要（取最新一場 normal run）
+const latestRun = runs.find((r) => r.kind !== 'portability') ?? runs[0];
+const heldPct = latestRun ? pct(latestRun.defense.flags_held_pct) : '—';
+const slaPct = latestRun ? pct(latestRun.defense.sla_uptime_pct) : '—';
+const methodsCount = primary?.playbookList.length ?? 0;
+const replayRun = latestRun?.run_id;
+
+// 工坊主迴圈拓樸（mermaid flowchart）
+const loopChart = `flowchart LR
+  A["攻擊方 AI<br/>放野持續捶打"] -->|exploit attack_data| V["vulnbox<br/>notes filelocker vault"]
+  D["防禦守護 AI<br/>巡檢加最小 diff 修補"] -->|patch self_verify| V
+  V -->|ForcAD 計分| S["守住率 SLA"]
+  V -->|攻法補洞日誌| L["鍛造軌跡<br/>PROMPT playbook 版本史"]
+  L -->|沉澱成配方| D
+  S -.->|信任證據| R["可搬到你主機的配方"]
+  classDef hot fill:#2a1408,stroke:#ff5a1f,color:#ff7a3c;
+  classDef box fill:#1b1e24,stroke:#3a414c,color:#e8eaed;
+  class A,D hot;
+  class V,S,L,R box;`;
+---
+
+<Layout
+  title="FORGE ⚒ 攻防工坊 — 在 AI 攻擊下煉成的防禦配方"
+  active="home"
+>
+  <!-- 第一屏：prompt + 套用步驟 + 模型切換 -->
+  <section class="hero wrap">
+    <div class="hero-head rise">
+      <span class="kicker">攻防工坊 · ATTACK / DEFENSE FORGE</span>
+      <h1 class="hero-title">
+        一份可搬到你主機的<span class="ember">防禦配方</span><br />
+        —— 在 AI 攻擊下煉成
+      </h1>
+      <p class="hero-sub muted">
+        放野的 AI 攻擊方持續捶打,防禦方反覆優化,沉澱成可複製的 prompt。
+        對外可複製的核心是 <code class="ic">PROMPT.md</code>(防禦 agent 的腦)+
+        <code class="ic">playbook.md</code>(攻法 → 安全堵法的記憶)。
+      </p>
+    </div>
+
+    <!-- 模型切換 -->
+    <div class="model-switch rise" data-model-switch>
+      <span class="ms-label mono">防禦模型</span>
+      {
+        modelCards.map((c, i) => (
+          <button
+            class={`ms-pill${i === 0 ? ' is-active' : ''}`}
+            data-model={c.model}
+          >
+            <i class="ms-dot" />
+            {c.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <!-- prompt 卡 + 套用步驟 -->
+    <div class="hero-grid">
+      <div class="prompt-card card card-hot corner-marks">
+        {
+          modelCards.map((c, i) => (
+            <div
+              class="prompt-pane"
+              data-model-pane={c.model}
+              style={i === 0 ? '' : 'display:none'}
+            >
+              <div class="prompt-bar">
+                <span class="mono prompt-file">
+                  # PROMPT.md
+                  <span class="faint">
+                    ({c.version} · 由 {c.label} 煉成)
+                  </span>
+                </span>
+                <button class="copy-btn" data-copy={`#raw-${c.model}`}>
+                  ⧉ 複製
+                </button>
+              </div>
+              <div class="md prompt-body" set:html={c.promptHtml} />
+              <pre id={`raw-${c.model}`} hidden>{c.prompt}</pre>
+              <div class="prompt-foot mono faint">
+                {c.versionCount} 版鍛造史 ·{' '}
+                {c.flagsHeld != null
+                  ? `最新守住率 ${pct(c.flagsHeld)}`
+                  : '尚無成效'}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+      <aside class="apply-card card corner-marks">
+        <h3 class="apply-title mono">套用到你主機</h3>
+        <ol class="apply-steps">
+          <li>
+            <span class="step-n mono">1</span>
+            <div>
+              <strong>clone 配方</strong>
+              <code class="step-cmd">git clone …/defense-recipe</code>
+            </div>
+          </li>
+          <li>
+            <span class="step-n mono">2</span>
+            <div>
+              <strong>設前置環境</strong>
+              <span class="muted">claude CLI + 服務隔離</span>
+            </div>
+          </li>
+          <li>
+            <span class="step-n mono">3</span>
+            <div>
+              <strong>跑 run.sh</strong>
+              <span class="muted">啟動防禦巡檢迴圈</span>
+            </div>
+          </li>
+        </ol>
+        <a class="btn btn-primary apply-cta" href={u('/recipe/')}>
+          ↓ 看完整配方
+        </a>
+      </aside>
+    </div>
+
+    <!-- 成效摘要列 -->
+    <div class="proof-row rise">
+      <div class="proof">
+        <span class="metric-val is-ember">{heldPct}</span>
+        <span class="metric-label">守住率</span>
+      </div>
+      <span class="proof-sep">·</span>
+      <div class="proof">
+        <span class="metric-val">{slaPct}</span>
+        <span class="metric-label">SLA</span>
+      </div>
+      <span class="proof-sep">·</span>
+      <div class="proof">
+        <span class="metric-val">{methodsCount}</span>
+        <span class="metric-label">已收編攻法</span>
+      </div>
+      <a class="proof-link mono" href={u('/evidence/')}>→ 看證據</a>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-row rise">
+      <a class="btn" href={u('/recipe/')}>看完整配方與軌跡</a>
+      {
+        replayRun && (
+          <a class="btn" href={u(`/runs/${replayRun}/`)}>
+            看一場攻防回放 →
+          </a>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- 工坊主迴圈拓樸 -->
+  <section class="loop-section wrap">
+    <div class="section-head">
+      <span class="kicker">工坊主迴圈</span>
+      <h2 class="section-title">攻擊磨刀 · 防禦鍛形 · 沉澱成配方</h2>
+    </div>
+    <Mermaid chart={loopChart} id="loop-topo" />
+    <p class="loop-note faint mono">
+      攻擊方與防禦方可為不同 AI/模型;配方依模型分軌,訪客挑自己用的模型拿對應 prompt。
+    </p>
+  </section>
+
+  <style>
+    .ic {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      color: var(--c-ember-bright);
+    }
+    .hero {
+      padding-top: clamp(2.5rem, 6vw, 5rem);
+    }
+    .hero-head {
+      max-width: 760px;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5.5vw, 3.4rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 1rem 0 1.2rem;
+      line-height: 1.08;
+    }
+    .hero-sub {
+      font-size: 1rem;
+      max-width: 640px;
+    }
+
+    .model-switch {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin: 2rem 0 1.2rem;
+      flex-wrap: wrap;
+    }
+    .ms-label {
+      font-size: 0.72rem;
+      color: var(--c-faint);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .ms-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      padding: 0.45rem 0.85rem;
+      background: var(--c-steel);
+      border: 1px solid var(--c-ash);
+      border-radius: 2px;
+      color: var(--c-mist);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ms-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--c-smoke);
+    }
+    .ms-pill:hover {
+      border-color: var(--c-ember);
+      color: var(--c-bone);
+    }
+    .ms-pill.is-active {
+      border-color: var(--c-ember);
+      color: var(--c-ember-bright);
+      background: var(--c-coal-glow);
+    }
+    .ms-pill.is-active .ms-dot {
+      background: var(--c-ember);
+      box-shadow: 0 0 8px var(--c-ember);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 1rem;
+      align-items: start;
+    }
+    .prompt-card {
+      padding: 1.2rem 1.3rem;
+      min-height: 280px;
+    }
+    .prompt-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 0.7rem;
+      margin-bottom: 0.9rem;
+      border-bottom: 1px solid var(--c-slate);
+    }
+    .prompt-file {
+      font-size: 0.82rem;
+      color: var(--c-bone);
+    }
+    .prompt-bar .copy-btn {
+      position: static;
+    }
+    .prompt-body {
+      max-height: 280px;
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent);
+      mask-image: linear-gradient(180deg, #000 78%, transparent);
+    }
+    .prompt-foot {
+      font-size: 0.72rem;
+      margin-top: 0.8rem;
+      padding-top: 0.7rem;
+      border-top: 1px solid var(--c-slate);
+    }
+
+    .apply-card {
+      padding: 1.3rem;
+      position: sticky;
+      top: 76px;
+    }
+    .apply-title {
+      font-size: 0.95rem;
+      color: var(--c-ember-bright);
+      margin-bottom: 1rem;
+    }
+    .apply-steps {
+      list-style: none;
+      display: grid;
+      gap: 0.9rem;
+      margin-bottom: 1.3rem;
+    }
+    .apply-steps li {
+      display: flex;
+      gap: 0.7rem;
+      align-items: flex-start;
+    }
+    .step-n {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--c-ember-deep);
+      color: var(--c-ember-bright);
+      border-radius: 2px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .apply-steps strong {
+      display: block;
+      font-size: 0.86rem;
+      margin-bottom: 0.15rem;
+    }
+    .step-cmd {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--c-faint);
+      word-break: break-all;
+    }
+    .apply-cta {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .proof-row {
+      display: flex;
+      align-items: center;
+      gap: 1.4rem;
+      margin: 2.2rem 0 0.5rem;
+      flex-wrap: wrap;
+    }
+    .proof {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .proof-sep {
+      color: var(--c-ash);
+      font-size: 1.5rem;
+    }
+    .proof-link {
+      font-size: 0.8rem;
+      color: var(--c-ember-bright);
+      margin-left: auto;
+    }
+    .proof-link:hover {
+      text-decoration: underline;
+    }
+
+    .cta-row {
+      display: flex;
+      gap: 0.8rem;
+      margin-top: 1.6rem;
+      flex-wrap: wrap;
+    }
+
+    .loop-section {
+      margin-top: clamp(3rem, 7vw, 5.5rem);
+    }
+    .section-head {
+      margin-bottom: 1.4rem;
+    }
+    .section-title {
+      font-size: clamp(1.4rem, 3.5vw, 2rem);
+      margin-top: 0.6rem;
+    }
+    .loop-note {
+      font-size: 0.74rem;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 820px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+      .apply-card {
+        position: static;
+      }
+    }
+  </style>
+
+  <script>
+    // 模型切換:同步 pill active + prompt pane 顯示。
+    document.querySelectorAll('[data-model-switch]').forEach((sw) => {
+      sw.querySelectorAll<HTMLElement>('.ms-pill').forEach((pill) => {
+        pill.addEventListener('click', () => {
+          const model = pill.getAttribute('data-model');
+          sw.querySelectorAll('.ms-pill').forEach((p) =>
+            p.classList.toggle('is-active', p === pill),
+          );
+          document
+            .querySelectorAll<HTMLElement>('[data-model-pane]')
+            .forEach((pane) => {
+              pane.style.display =
+                pane.getAttribute('data-model-pane') === model ? '' : 'none';
+            });
+        });
+      });
+    });
+  </script>
+</Layout>

@@ -1,0 +1,90 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  active?: string;
+}
+const {
+  title,
+  description = '一份可搬到你主機的防禦配方 —— 在 AI 攻擊下煉成。',
+  active,
+} = Astro.props;
+const base = import.meta.env.BASE_URL;
+const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+---
+
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href={u('/favicon.svg')} />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <Nav active={active} />
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <span class="mono">⚒ FORGE · 攻防工坊</span>
+        <span class="faint mono"
+          >在 AI 攻擊下煉成的防禦配方 · 靜態製品 · mock 資料</span
+        >
+      </div>
+    </footer>
+
+    <style>
+      main {
+        min-height: calc(100vh - 60px - 80px);
+      }
+      .site-footer {
+        border-top: 1px solid var(--c-slate);
+        margin-top: 4rem;
+        padding: 1.6rem 0;
+      }
+      .footer-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .footer-inner .mono {
+        font-family: var(--font-mono);
+      }
+    </style>
+
+    <script>
+      // 全域複製按鈕：任何 [data-copy] 觸發複製其 [data-copy-target] 或鄰近 <pre>。
+      document.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-copy]');
+        if (!btn) return;
+        const sel = btn.getAttribute('data-copy');
+        let text = '';
+        if (sel === 'prev') {
+          const pre = btn.parentElement?.querySelector('pre');
+          text = pre?.textContent ?? '';
+        } else if (sel) {
+          const el = document.querySelector(sel);
+          text = el?.textContent ?? '';
+        }
+        navigator.clipboard.writeText(text.trim()).then(() => {
+          const old = btn.textContent;
+          btn.textContent = '✓ 已複製';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = old;
+            btn.classList.remove('copied');
+          }, 1600);
+        });
+      });
+    </script>
+  </body>
+</html>

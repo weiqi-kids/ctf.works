@@ -1,0 +1,425 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORGE ⚒ — 攻防工坊  設計 tokens
+   美學方向：工業鍛造 / 終端機 brutalist。
+   炭黑底 + 熔融餘燼橙(forge heat)+ 戰術綠/警示紅。
+   字：JetBrains Mono（鍛造金屬/終端機感）+ Sora（精煉內文）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sora 內文字（可變字重）— @import 必須在所有規則之前 */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('https://fonts.gstatic.com/s/jetbrainsmono/v24/tDba2o-flEEny0FZhsfKu5WU4xD-IQ-PuZJJXxfpAO-Lf1OQk6OThxPA.woff2')
+    format('woff2');
+  font-weight: 400 800;
+  font-display: swap;
+}
+
+:root {
+  /* ── 底色：炭與鐵 ── */
+  --c-void: #0a0b0d;
+  --c-iron: #121418;
+  --c-steel: #1b1e24;
+  --c-slate: #262b33;
+  --c-ash: #3a414c;
+  --c-smoke: #5d6675;
+
+  /* ── 文字 ── */
+  --c-bone: #e8eaed;
+  --c-mist: #aab2bf;
+  --c-faint: #767e8c;
+
+  /* ── 餘燼橙：forge heat（主強調） ── */
+  --c-ember: #ff5a1f;
+  --c-ember-bright: #ff7a3c;
+  --c-ember-deep: #c43e10;
+  --c-coal-glow: #2a1408;
+
+  /* ── 狀態色 ── */
+  --c-hold: #38d39f; /* 守住 / OK */
+  --c-mumble: #f5c542; /* MUMBLE */
+  --c-corrupt: #e8843c; /* CORRUPT */
+  --c-down: #6b7280; /* DOWN */
+  --c-stolen: #ff3b5c; /* 被偷 */
+
+  /* ── 排版 ── */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-body: 'Sora', system-ui, -apple-system, 'PingFang TC', 'Noto Sans TC',
+    sans-serif;
+
+  --maxw: 1180px;
+  --gap: clamp(1rem, 2.5vw, 2rem);
+  --radius: 3px;
+
+  --line: 1px solid var(--c-slate);
+  --line-bright: 1px solid var(--c-ash);
+
+  --shadow-ember: 0 0 0 1px rgba(255, 90, 31, 0.35),
+    0 8px 40px -12px rgba(255, 90, 31, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--c-void);
+  color: var(--c-bone);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  /* 細微 grid 紋理 + 角落餘燼暈光 */
+  background-image: linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    radial-gradient(
+      ellipse 60% 50% at 100% 0%,
+      rgba(255, 90, 31, 0.07),
+      transparent 70%
+    );
+  background-size: 48px 48px, 48px 48px, 100% 100%;
+}
+
+/* 掃描線疊層（極淡） */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 3px,
+    rgba(0, 0, 0, 0.16) 3px 4px
+  );
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* ── 版心 ── */
+.wrap {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--gap);
+  position: relative;
+  z-index: 2;
+}
+
+/* ── 區塊標題：終端機式 ── */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--c-ember);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.kicker::before {
+  content: '';
+  width: 14px;
+  height: 1px;
+  background: var(--c-ember);
+}
+
+/* ── 按鈕 ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.7rem 1.2rem;
+  border: var(--line-bright);
+  border-radius: var(--radius);
+  background: var(--c-steel);
+  color: var(--c-bone);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+}
+.btn:hover {
+  border-color: var(--c-ember);
+  color: var(--c-ember-bright);
+  background: var(--c-coal-glow);
+}
+.btn-primary {
+  background: var(--c-ember);
+  color: #1a0a02;
+  border-color: var(--c-ember);
+  box-shadow: 0 4px 24px -8px rgba(255, 90, 31, 0.6);
+}
+.btn-primary:hover {
+  background: var(--c-ember-bright);
+  color: #1a0a02;
+  box-shadow: 0 6px 32px -6px rgba(255, 90, 31, 0.8);
+}
+
+/* ── 卡片 ── */
+.card {
+  background: linear-gradient(180deg, var(--c-iron), var(--c-void));
+  border: var(--line);
+  border-radius: var(--radius);
+  position: relative;
+}
+.card-hot {
+  border-color: var(--c-ash);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* 角標：工業鉚釘式角線 */
+.corner-marks {
+  position: relative;
+}
+.corner-marks::before,
+.corner-marks::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--c-ember);
+  border-style: solid;
+  opacity: 0.6;
+}
+.corner-marks::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+.corner-marks::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+/* ── 狀態 pill / 標籤 ── */
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  padding: 0.18rem 0.5rem;
+  border-radius: 2px;
+  border: var(--line);
+  color: var(--c-mist);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+.tag-ember {
+  color: var(--c-ember-bright);
+  border-color: var(--c-ember-deep);
+  background: var(--c-coal-glow);
+}
+.tag-hold {
+  color: var(--c-hold);
+  border-color: #1c5a48;
+  background: #0c1f1a;
+}
+
+/* ── 數據度量大字 ── */
+.metric-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 1;
+  color: var(--c-bone);
+}
+.metric-val.is-ember {
+  color: var(--c-ember-bright);
+}
+.metric-label {
+  font-size: 0.72rem;
+  color: var(--c-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+/* ── 程式碼區塊 ── */
+pre.code {
+  background: var(--c-void);
+  border: var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--c-mist);
+  position: relative;
+}
+pre.code .cmt {
+  color: var(--c-faint);
+}
+pre.code .em {
+  color: var(--c-ember-bright);
+}
+
+/* 複製按鈕 */
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 0.25rem 0.55rem;
+  background: var(--c-steel);
+  border: var(--line-bright);
+  border-radius: 2px;
+  color: var(--c-mist);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copy-btn:hover {
+  color: var(--c-ember-bright);
+  border-color: var(--c-ember);
+}
+.copy-btn.copied {
+  color: var(--c-hold);
+  border-color: var(--c-hold);
+}
+
+/* ── 排版輔助 ── */
+.muted {
+  color: var(--c-mist);
+}
+.faint {
+  color: var(--c-faint);
+}
+.ember {
+  color: var(--c-ember-bright);
+}
+hr.rule {
+  border: none;
+  border-top: var(--line);
+  margin: var(--gap) 0;
+}
+
+/* ── markdown 渲染（prompt/playbook） ── */
+.md {
+  font-size: 0.86rem;
+  line-height: 1.75;
+  color: var(--c-mist);
+}
+.md h1 {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--c-bone);
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.5rem;
+  border-bottom: var(--line);
+}
+.md h2 {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  color: var(--c-ember-bright);
+  margin: 1.2rem 0 0.5rem;
+}
+.md p {
+  margin: 0.5rem 0;
+}
+.md ul {
+  margin: 0.5rem 0 0.5rem 1.1rem;
+}
+.md li {
+  margin: 0.25rem 0;
+}
+.md code {
+  background: var(--c-void);
+  border: var(--line);
+  border-radius: 2px;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.8rem;
+  color: var(--c-ember-bright);
+}
+
+/* ── 入場動畫 ── */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  body::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── 表格 ── */
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+table.grid th,
+table.grid td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: var(--line);
+}
+table.grid th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+  font-weight: 500;
+}
+table.grid tr:hover td {
+  background: rgba(255, 90, 31, 0.04);
+}
+
+/* mermaid 容器 */
+.mermaid-box {
+  background: var(--c-iron);
+  border: var(--line);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  overflow-x: auto;
+}
+.mermaid-box svg {
+  max-width: 100%;
+  height: auto;
+}

@@ -1,0 +1,210 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ReplayPlayer from '../../components/ReplayPlayer.astro';
+import { getRuns, getTrajectory, modelLabel, pct, runExists } from '../../lib/data';
+
+export function getStaticPaths() {
+  return getRuns().map((run) => ({
+    params: { run_id: run.run_id },
+    props: { run },
+  }));
+}
+
+const { run } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+
+const fp = run.fingerprint;
+const defLabel = modelLabel(fp.defender.model);
+const atkLabels = fp.attackers.map((a) => modelLabel(a.model)).join(', ');
+
+// 版本邊界（v2→v3 之類）— 從 defense_events 找 version_bump
+const bumps = run.timeseries
+  .flatMap((t) =>
+    t.defense_events
+      .filter((d) => d.version_bump)
+      .map((d) => ({ round: t.round, bump: d.version_bump })),
+  )
+  .filter(Boolean);
+const versionSpan =
+  bumps.length > 0 ? bumps[0].bump : `配方 ${fp.defender.recipe}`;
+
+// 跨版本 diff：trajectory 的 diff_summary（這版相對前版）
+const traj = getTrajectory();
+const tModel = traj.models.find((m) => m.model === fp.defender.model);
+const thisV = tModel?.versions.find((v) => v.run_id === run.run_id);
+const diffSummary = thisV?.diff_summary ?? '';
+
+const def = run.defense;
+const baselineLost = def.nopatch_baseline_flags_lost ?? 0;
+const recipeHasRun = runExists(run.run_id);
+---
+
+<Layout
+  title={`回放 ${run.run_id} — FORGE ⚒ 攻防工坊`}
+  active="runs"
+>
+  <section class="wrap replay-page">
+    <!-- 標頭 -->
+    <div class="replay-head rise">
+      <a class="back-link mono" href={u('/runs/')}>← 歷史</a>
+      <div class="rh-main">
+        <div class="rh-title">
+          <h1 class="run-h1 mono">{run.run_id}</h1>
+          <span class={`tag mono ${run.kind === 'portability' ? 'tag-ember' : ''}`}>
+            {run.kind ?? 'normal'}
+          </span>
+        </div>
+        <div class="rh-meta mono muted">
+          <span>🛡 防禦:<b class="ember">{defLabel}</b> · {fp.defender.recipe}</span>
+          <span class="sep">·</span>
+          <span>🗡 攻擊:<b>{atkLabels}</b></span>
+        </div>
+        <div class="rh-cfg mono faint">
+          round_time {fp.forcad.round_time}s · flag_lifetime{' '}
+          {fp.forcad.flag_lifetime} · {versionSpan}
+        </div>
+      </div>
+    </div>
+
+    <!-- 概況度量 -->
+    <div class="rp-stats rise">
+      <div class="stat">
+        <span class="metric-val is-ember">{pct(def.flags_held_pct)}</span>
+        <span class="metric-label">守住率</span>
+      </div>
+      <div class="stat">
+        <span class="metric-val">{pct(def.sla_uptime_pct)}</span>
+        <span class="metric-label">SLA</span>
+      </div>
+      <div class="stat">
+        <span class="metric-val">{def.self_own_count ?? 0}</span>
+        <span class="metric-label">自殘次數</span>
+      </div>
+      <div class="stat">
+        <span class="metric-val stolen-val">{baselineLost}</span>
+        <span class="metric-label">不補基線丟旗</span>
+      </div>
+    </div>
+
+    {
+      diffSummary && (
+        <div class="version-diff card corner-marks rise">
+          <span class="kicker">跨版本 diff（版本邊界）</span>
+          <p class="vd-text">
+            <span class="vd-bump mono">{versionSpan}</span>
+            {diffSummary}
+          </p>
+        </div>
+      )
+    }
+
+    <!-- d3 播放器 -->
+    <div class="player-wrap rise">
+      <ReplayPlayer run={run} />
+    </div>
+
+    <div class="replay-foot">
+      <a class="btn" href={u('/recipe/')}>← 看這個配方</a>
+      <a class="btn" href={u('/evidence/')}>看信任證據 →</a>
+    </div>
+  </section>
+
+  <style>
+    .replay-page {
+      padding-top: clamp(1.6rem, 4vw, 2.8rem);
+    }
+    .replay-head {
+      display: flex;
+      gap: 1.2rem;
+      align-items: flex-start;
+      margin-bottom: 1.6rem;
+    }
+    .back-link {
+      font-size: 0.82rem;
+      color: var(--c-mist);
+      padding-top: 0.3rem;
+      white-space: nowrap;
+    }
+    .back-link:hover {
+      color: var(--c-ember-bright);
+    }
+    .rh-title {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 0.5rem;
+    }
+    .run-h1 {
+      font-size: clamp(1.3rem, 3.5vw, 2rem);
+      font-weight: 700;
+    }
+    .rh-meta {
+      font-size: 0.86rem;
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.3rem;
+    }
+    .rh-meta b {
+      color: var(--c-bone);
+      font-weight: 600;
+    }
+    .sep {
+      color: var(--c-ash);
+    }
+    .rh-cfg {
+      font-size: 0.74rem;
+    }
+
+    .rp-stats {
+      display: flex;
+      gap: 2rem;
+      padding: 1.2rem 1.3rem;
+      background: linear-gradient(180deg, var(--c-iron), var(--c-void));
+      border: 1px solid var(--c-slate);
+      border-radius: var(--radius);
+      margin-bottom: 1.2rem;
+      flex-wrap: wrap;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .stolen-val {
+      color: var(--c-stolen);
+    }
+
+    .version-diff {
+      padding: 1.1rem 1.3rem;
+      margin-bottom: 1.2rem;
+    }
+    .vd-text {
+      margin-top: 0.6rem;
+      font-size: 0.88rem;
+      color: var(--c-mist);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .vd-bump {
+      color: var(--c-ember-bright);
+      border: 1px solid var(--c-ember-deep);
+      background: var(--c-coal-glow);
+      padding: 0.15rem 0.5rem;
+      border-radius: 2px;
+      font-size: 0.78rem;
+    }
+
+    .player-wrap {
+      margin-bottom: 2rem;
+    }
+    .replay-foot {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+  </style>
+</Layout>

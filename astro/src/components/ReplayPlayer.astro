@@ -1,0 +1,747 @@
+---
+// ═══════════════════════════════════════════════════════════════════════════
+// 攻防回放播放器（網站最重的互動元件）。
+// d3.js client island：讀該 run 的 timeseries，畫棋盤(team×服務×狀態×偷/守)、
+// 分數/SLA sparkline、可拖曳 round 播放器、版本邊界標記、本 round 事件、跨版本 diff。
+// 只 import 需要的 d3 子模組（scale/selection/transition/shape/array）。
+// run 資料以 JSON 注入 client（靜態站相容）。
+// ═══════════════════════════════════════════════════════════════════════════
+import type { Run } from '../lib/data';
+interface Props {
+  run: Run;
+}
+const { run } = Astro.props;
+const runJson = JSON.stringify(run);
+---
+
+<div class="replay" data-replay>
+  <script type="application/json" data-run set:html={runJson} />
+
+  <!-- 棋盤 -->
+  <section class="rp-panel rp-board corner-marks">
+    <div class="rp-panel-head">
+      <span class="kicker">棋盤 · team × 服務（逐 round 上色）</span>
+      <span class="rp-round-badge mono" data-round-badge>round —</span>
+    </div>
+    <div class="rp-board-grid" data-board></div>
+    <div class="rp-legend mono">
+      <span><i class="sw sw-hold"></i>守住</span>
+      <span><i class="sw sw-stolen"></i>被偷</span>
+      <span><i class="sw sw-mumble"></i>MUMBLE</span>
+      <span><i class="sw sw-down"></i>DOWN</span>
+    </div>
+  </section>
+
+  <!-- 分數 / SLA sparkline -->
+  <section class="rp-panel rp-spark">
+    <div class="rp-panel-head">
+      <span class="kicker">守住率 / SLA 走勢（與游標同步）</span>
+    </div>
+    <svg data-spark class="rp-spark-svg" preserveAspectRatio="none"></svg>
+    <div class="rp-spark-legend mono">
+      <span><i class="sw sw-held"></i>累計守住率</span>
+      <span><i class="sw sw-sla"></i>SLA</span>
+    </div>
+  </section>
+
+  <!-- 播放控制 -->
+  <section class="rp-panel rp-controls">
+    <div class="rp-transport">
+      <button class="rp-btn" data-act="first" title="回到開頭">◀◀</button>
+      <button class="rp-btn" data-act="step-back" title="上一 round">◀</button>
+      <button class="rp-btn rp-play" data-act="play" title="播放/暫停">▶ 播放</button>
+      <button class="rp-btn" data-act="step-fwd" title="下一 round">▶</button>
+      <button class="rp-btn" data-act="last" title="跳到結尾">▶▶</button>
+      <label class="rp-speed mono">
+        速度
+        <select data-speed>
+          <option value="2000">0.5x</option>
+          <option value="1000" selected>1x</option>
+          <option value="500">2x</option>
+          <option value="250">4x</option>
+        </select>
+      </label>
+    </div>
+    <div class="rp-scrub" data-scrub-wrap>
+      <input type="range" class="rp-range" data-range min="0" max="0" value="0" />
+      <div class="rp-markers" data-markers></div>
+    </div>
+    <div class="rp-scrub-labels mono">
+      <span data-round-now>round 0</span>
+      <span class="faint" data-round-total>/ 0</span>
+    </div>
+  </section>
+
+  <!-- 本 round 事件 -->
+  <section class="rp-panel rp-events corner-marks">
+    <div class="rp-panel-head">
+      <span class="kicker">本 round 事件</span>
+    </div>
+    <div class="rp-events-body" data-events>
+      <p class="faint mono rp-empty">— 無事件 —</p>
+    </div>
+  </section>
+</div>
+
+<style>
+  .replay {
+    display: grid;
+    gap: 1rem;
+  }
+  .rp-panel {
+    background: linear-gradient(180deg, var(--c-iron), var(--c-void));
+    border: 1px solid var(--c-slate);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.2rem;
+  }
+  .rp-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.9rem;
+    gap: 1rem;
+  }
+  .rp-round-badge {
+    font-size: 0.78rem;
+    color: var(--c-ember-bright);
+    border: 1px solid var(--c-ember-deep);
+    background: var(--c-coal-glow);
+    padding: 0.2rem 0.6rem;
+    border-radius: 2px;
+  }
+
+  /* 棋盤格 */
+  .rp-board-grid {
+    display: grid;
+    gap: 6px;
+  }
+  .rp-row {
+    display: grid;
+    grid-template-columns: 120px repeat(3, 1fr);
+    gap: 6px;
+    align-items: stretch;
+  }
+  .rp-row-head {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--c-mist);
+    padding: 0.4rem 0.2rem;
+  }
+  .rp-row-head small {
+    color: var(--c-faint);
+    font-size: 0.64rem;
+  }
+  .rp-colhead {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: var(--c-faint);
+    text-transform: uppercase;
+    text-align: center;
+    padding-bottom: 2px;
+  }
+  .rp-cell {
+    border-radius: 2px;
+    padding: 0.65rem 0.5rem;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    border: 1px solid transparent;
+    transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+  }
+  .rp-cell.s-hold {
+    background: #0c1f1a;
+    border-color: #1c5a48;
+    color: var(--c-hold);
+  }
+  .rp-cell.s-stolen {
+    background: #2a0d14;
+    border-color: #5c1e2b;
+    color: var(--c-stolen);
+    box-shadow: inset 0 0 18px -6px rgba(255, 59, 92, 0.5);
+  }
+  .rp-cell.s-mumble {
+    background: #211c08;
+    border-color: #5a4d18;
+    color: var(--c-mumble);
+  }
+  .rp-cell.s-down {
+    background: #14161a;
+    border-color: var(--c-ash);
+    color: var(--c-down);
+  }
+
+  .rp-legend,
+  .rp-spark-legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.8rem;
+    font-size: 0.68rem;
+    color: var(--c-faint);
+    flex-wrap: wrap;
+  }
+  .rp-legend span,
+  .rp-spark-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .sw {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .sw-hold {
+    background: var(--c-hold);
+  }
+  .sw-stolen {
+    background: var(--c-stolen);
+  }
+  .sw-mumble {
+    background: var(--c-mumble);
+  }
+  .sw-down {
+    background: var(--c-down);
+  }
+  .sw-held {
+    background: var(--c-hold);
+  }
+  .sw-sla {
+    background: var(--c-ember);
+  }
+
+  /* sparkline */
+  .rp-spark-svg {
+    width: 100%;
+    height: 90px;
+    display: block;
+  }
+
+  /* 控制 */
+  .rp-transport {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .rp-btn {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 0.45rem 0.7rem;
+    background: var(--c-steel);
+    color: var(--c-bone);
+    border: 1px solid var(--c-ash);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .rp-btn:hover {
+    border-color: var(--c-ember);
+    color: var(--c-ember-bright);
+  }
+  .rp-play {
+    background: var(--c-ember);
+    color: #1a0a02;
+    border-color: var(--c-ember);
+    min-width: 84px;
+  }
+  .rp-play:hover {
+    background: var(--c-ember-bright);
+    color: #1a0a02;
+  }
+  .rp-speed {
+    margin-left: auto;
+    font-size: 0.74rem;
+    color: var(--c-faint);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .rp-speed select {
+    font-family: var(--font-mono);
+    background: var(--c-steel);
+    color: var(--c-bone);
+    border: 1px solid var(--c-ash);
+    border-radius: 2px;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .rp-scrub {
+    position: relative;
+  }
+  .rp-range {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--c-slate);
+    outline: none;
+    cursor: pointer;
+  }
+  .rp-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--c-ember);
+    border: 2px solid var(--c-void);
+    box-shadow: 0 0 10px rgba(255, 90, 31, 0.7);
+    cursor: pointer;
+  }
+  .rp-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--c-ember);
+    border: 2px solid var(--c-void);
+    cursor: pointer;
+  }
+  .rp-markers {
+    position: relative;
+    height: 20px;
+    margin-top: 2px;
+  }
+  .rp-marker {
+    position: absolute;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--c-ember-bright);
+    white-space: nowrap;
+    top: 0;
+  }
+  .rp-marker::before {
+    content: '▲';
+    display: block;
+    text-align: center;
+    font-size: 0.55rem;
+  }
+  .rp-scrub-labels {
+    display: flex;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+    font-size: 0.74rem;
+    color: var(--c-mist);
+  }
+
+  /* 事件 */
+  .rp-events-body {
+    display: grid;
+    gap: 0.55rem;
+  }
+  .rp-event {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    font-size: 0.82rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 2px;
+    border: 1px solid var(--c-slate);
+    background: var(--c-iron);
+    animation: rise 0.35s ease both;
+  }
+  .rp-event .ico {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+  .rp-event.ev-attack {
+    border-color: #5c1e2b;
+  }
+  .rp-event.ev-defense {
+    border-color: #1c5a48;
+  }
+  .rp-event.ev-version {
+    border-color: var(--c-ember-deep);
+    background: var(--c-coal-glow);
+  }
+  .rp-event .txt strong {
+    color: var(--c-bone);
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+  .rp-event .meta {
+    color: var(--c-faint);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+  .rp-empty {
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 620px) {
+    .rp-row {
+      grid-template-columns: 84px repeat(3, 1fr);
+    }
+    .rp-cell {
+      font-size: 0.66rem;
+      padding: 0.5rem 0.25rem;
+    }
+  }
+</style>
+
+<script>
+  import { scaleLinear } from 'd3-scale';
+  import { select } from 'd3-selection';
+  import { line, area } from 'd3-shape';
+  import { max as d3max, extent } from 'd3-array';
+  import 'd3-transition';
+
+  type Status = 'OK' | 'MUMBLE' | 'CORRUPT' | 'DOWN';
+  interface BoardCell {
+    team: string;
+    service: string;
+    status: Status;
+    stolen: boolean;
+  }
+  interface AttackEvent {
+    model: string;
+    service: string;
+    method: string;
+    victim: string;
+  }
+  interface DefenseEvent {
+    service: string;
+    action: string;
+    version_bump?: string;
+  }
+  interface Round {
+    round: number;
+    board: BoardCell[];
+    attack_events: AttackEvent[];
+    defense_events: DefenseEvent[];
+  }
+  interface Run {
+    run_id: string;
+    fingerprint: { defender: { model: string }; attackers: { model: string }[] };
+    timeseries: Round[];
+  }
+
+  const SERVICES = ['notes', 'filelocker', 'vault'];
+  const TEAM_LABELS: Record<string, { name: string; sub: string }> = {
+    defense: { name: '防禦①', sub: '配方守護' },
+    baseline: { name: '基線', sub: '不補對照' },
+  };
+  const MODEL_LABELS: Record<string, string> = {
+    'claude-fable-5': 'Claude Fable 5',
+    'gpt-5.1': 'GPT-5.1',
+    'gemini-3': 'Gemini 3',
+  };
+  const ml = (s: string) => MODEL_LABELS[s] ?? s;
+
+  function cellClass(c: BoardCell): string {
+    if (c.status === 'DOWN') return 's-down';
+    if (c.status === 'MUMBLE' || c.status === 'CORRUPT') return 's-mumble';
+    if (c.stolen) return 's-stolen';
+    return 's-hold';
+  }
+  function cellText(c: BoardCell): string {
+    if (c.status === 'DOWN') return 'DOWN';
+    if (c.status === 'MUMBLE') return 'MUMBLE';
+    if (c.status === 'CORRUPT') return 'CORRUPT';
+    return c.stolen ? '被偷!' : '守住';
+  }
+
+  // ── 把稀疏 keyframe 展開成逐 round 的完整時間軸（狀態向前延續）。
+  function expand(ts: Round[]): Round[] {
+    if (!ts.length) return [];
+    const sorted = [...ts].sort((a, b) => a.round - b.round);
+    const minR = sorted[0].round;
+    const maxR = sorted[sorted.length - 1].round;
+    const byRound = new Map<number, Round>();
+    for (const r of sorted) byRound.set(r.round, r);
+    const out: Round[] = [];
+    let lastBoard: BoardCell[] = sorted[0].board;
+    for (let r = minR; r <= maxR; r++) {
+      const kf = byRound.get(r);
+      if (kf) {
+        lastBoard = kf.board;
+        out.push(kf);
+      } else {
+        // 沿用上一個已知棋盤，無事件
+        out.push({
+          round: r,
+          board: lastBoard,
+          attack_events: [],
+          defense_events: [],
+        });
+      }
+    }
+    return out;
+  }
+
+  function initReplay(root: HTMLElement) {
+    const dataEl = root.querySelector<HTMLElement>('[data-run]');
+    if (!dataEl) return;
+    const run: Run = JSON.parse(dataEl.textContent || '{}');
+    const frames = expand(run.timeseries || []);
+    if (!frames.length) return;
+
+    const teams = [...new Set(frames[0].board.map((c) => c.team))];
+    const total = frames.length;
+
+    // ── 預先算累計守住率 / SLA（給 sparkline）。
+    const series = frames.map((f) => {
+      const defCells = f.board.filter((c) => c.team === 'defense');
+      const held =
+        defCells.length === 0
+          ? 1
+          : defCells.filter((c) => !c.stolen).length / defCells.length;
+      const up =
+        defCells.length === 0
+          ? 1
+          : defCells.filter((c) => c.status === 'OK').length / defCells.length;
+      return { round: f.round, held, sla: up };
+    });
+    // 平滑成「累計平均」讓曲線像走勢
+    let cumHeld = 0,
+      cumSla = 0;
+    const cum = series.map((s, i) => {
+      cumHeld += s.held;
+      cumSla += s.sla;
+      return { round: s.round, held: cumHeld / (i + 1), sla: cumSla / (i + 1) };
+    });
+
+    // ── refs
+    const boardEl = root.querySelector<HTMLElement>('[data-board]')!;
+    const eventsEl = root.querySelector<HTMLElement>('[data-events]')!;
+    const range = root.querySelector<HTMLInputElement>('[data-range]')!;
+    const roundBadge = root.querySelector<HTMLElement>('[data-round-badge]')!;
+    const roundNow = root.querySelector<HTMLElement>('[data-round-now]')!;
+    const roundTotal = root.querySelector<HTMLElement>('[data-round-total]')!;
+    const playBtn = root.querySelector<HTMLButtonElement>('[data-act="play"]')!;
+    const speedSel = root.querySelector<HTMLSelectElement>('[data-speed]')!;
+    const markersEl = root.querySelector<HTMLElement>('[data-markers]')!;
+    const sparkSvg = root.querySelector<SVGSVGElement>('[data-spark]')!;
+
+    range.max = String(total - 1);
+    roundTotal.textContent = `/ ${frames[total - 1].round}`;
+
+    // ── 版本邊界標記
+    frames.forEach((f, i) => {
+      const bump = f.defense_events.find((d) => d.version_bump);
+      if (bump) {
+        const m = document.createElement('div');
+        m.className = 'rp-marker';
+        m.style.left = `${(i / (total - 1)) * 100}%`;
+        m.textContent = bump.version_bump || '版本';
+        markersEl.appendChild(m);
+      }
+    });
+
+    // ── 棋盤骨架（一次建好，之後只更新 class/text）
+    boardEl.innerHTML = '';
+    const headerRow = document.createElement('div');
+    headerRow.className = 'rp-row';
+    headerRow.innerHTML =
+      '<div></div>' +
+      SERVICES.map((s) => `<div class="rp-colhead">${s}</div>`).join('');
+    boardEl.appendChild(headerRow);
+
+    const cellRefs = new Map<string, HTMLElement>();
+    for (const team of teams) {
+      const row = document.createElement('div');
+      row.className = 'rp-row';
+      const t = TEAM_LABELS[team] ?? { name: team, sub: '' };
+      const head = document.createElement('div');
+      head.className = 'rp-row-head';
+      head.innerHTML = `${t.name}<small>${t.sub}</small>`;
+      row.appendChild(head);
+      for (const svc of SERVICES) {
+        const cell = document.createElement('div');
+        cell.className = 'rp-cell s-hold';
+        cell.textContent = '守住';
+        cellRefs.set(`${team}::${svc}`, cell);
+        row.appendChild(cell);
+      }
+      boardEl.appendChild(row);
+    }
+
+    // ── sparkline 設定
+    const W = 600,
+      H = 90,
+      pad = 6;
+    sparkSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const svg = select(sparkSvg);
+    const x = scaleLinear()
+      .domain(extent(cum, (d) => d.round) as [number, number])
+      .range([pad, W - pad]);
+    const y = scaleLinear().domain([0, 1]).range([H - pad, pad]);
+
+    const heldLine = line<{ round: number; held: number }>()
+      .x((d) => x(d.round))
+      .y((d) => y(d.held));
+    const slaLine = line<{ round: number; sla: number }>()
+      .x((d) => x(d.round))
+      .y((d) => y(d.sla));
+    const heldArea = area<{ round: number; held: number }>()
+      .x((d) => x(d.round))
+      .y0(H - pad)
+      .y1((d) => y(d.held));
+
+    svg
+      .append('path')
+      .attr('d', heldArea(cum) || '')
+      .attr('fill', 'rgba(56,211,159,0.10)');
+    svg
+      .append('path')
+      .attr('d', heldLine(cum) || '')
+      .attr('fill', 'none')
+      .attr('stroke', '#38d39f')
+      .attr('stroke-width', 2);
+    svg
+      .append('path')
+      .attr('d', slaLine(cum) || '')
+      .attr('fill', 'none')
+      .attr('stroke', '#ff5a1f')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '4 3');
+
+    // 游標線
+    const cursor = svg
+      .append('line')
+      .attr('y1', pad)
+      .attr('y2', H - pad)
+      .attr('stroke', '#e8eaed')
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.6);
+    const heldDot = svg
+      .append('circle')
+      .attr('r', 3.5)
+      .attr('fill', '#38d39f');
+    const slaDot = svg.append('circle').attr('r', 3.5).attr('fill', '#ff5a1f');
+
+    // ── 渲染某一格 frame
+    function render(idx: number) {
+      const f = frames[idx];
+      roundBadge.textContent = `round ${f.round}`;
+      roundNow.textContent = `round ${f.round}`;
+
+      for (const c of f.board) {
+        const el = cellRefs.get(`${c.team}::${c.service}`);
+        if (!el) continue;
+        el.className = `rp-cell ${cellClass(c)}`;
+        el.textContent = cellText(c);
+      }
+
+      // 事件
+      const evs: string[] = [];
+      for (const a of f.attack_events) {
+        const victim = TEAM_LABELS[a.victim]?.name ?? a.victim;
+        evs.push(
+          `<div class="rp-event ev-attack"><span class="ico">🗡</span><div class="txt"><strong>攻擊 ${ml(
+            a.model,
+          )}</strong> · ${a.service} · ${a.method}<div class="meta">偷到 ${victim} flag</div></div></div>`,
+        );
+      }
+      for (const d of f.defense_events) {
+        if (d.version_bump) {
+          evs.push(
+            `<div class="rp-event ev-version"><span class="ico">⬆</span><div class="txt"><strong>${d.version_bump} 版本切換</strong>（版本邊界）<div class="meta">${d.service} · ${d.action}</div></div></div>`,
+          );
+        } else {
+          evs.push(
+            `<div class="rp-event ev-defense"><span class="ico">🛡</span><div class="txt"><strong>防禦 ${ml(
+              run.fingerprint.defender.model,
+            )}</strong> · ${d.service}<div class="meta">${d.action}</div></div></div>`,
+          );
+        }
+      }
+      eventsEl.innerHTML = evs.length
+        ? evs.join('')
+        : '<p class="faint mono rp-empty">— 本 round 無事件 —</p>';
+
+      // sparkline 游標
+      const cx = x(f.round);
+      cursor.attr('x1', cx).attr('x2', cx);
+      heldDot.attr('cx', cx).attr('cy', y(cum[idx].held));
+      slaDot.attr('cx', cx).attr('cy', y(cum[idx].sla));
+
+      range.value = String(idx);
+    }
+
+    // ── 播放器狀態機
+    let idx = 0;
+    let playing = false;
+    let timer: number | null = null;
+
+    function stop() {
+      playing = false;
+      playBtn.textContent = '▶ 播放';
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+    function start() {
+      if (idx >= total - 1) idx = 0;
+      playing = true;
+      playBtn.textContent = '❚❚ 暫停';
+      const speed = Number(speedSel.value);
+      timer = window.setInterval(() => {
+        if (idx >= total - 1) {
+          stop();
+          return;
+        }
+        idx++;
+        render(idx);
+      }, speed);
+    }
+
+    playBtn.addEventListener('click', () => (playing ? stop() : start()));
+    speedSel.addEventListener('change', () => {
+      if (playing) {
+        stop();
+        start();
+      }
+    });
+    root
+      .querySelector('[data-act="first"]')!
+      .addEventListener('click', () => {
+        stop();
+        idx = 0;
+        render(idx);
+      });
+    root.querySelector('[data-act="last"]')!.addEventListener('click', () => {
+      stop();
+      idx = total - 1;
+      render(idx);
+    });
+    root
+      .querySelector('[data-act="step-fwd"]')!
+      .addEventListener('click', () => {
+        stop();
+        idx = Math.min(total - 1, idx + 1);
+        render(idx);
+      });
+    root
+      .querySelector('[data-act="step-back"]')!
+      .addEventListener('click', () => {
+        stop();
+        idx = Math.max(0, idx - 1);
+        render(idx);
+      });
+    range.addEventListener('input', () => {
+      stop();
+      idx = Number(range.value);
+      render(idx);
+    });
+
+    render(0);
+  }
+
+  document
+    .querySelectorAll<HTMLElement>('[data-replay]')
+    .forEach((el) => initReplay(el));
+</script>

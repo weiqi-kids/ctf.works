@@ -1,0 +1,712 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import TrajectoryCurve from '../../components/TrajectoryCurve.astro';
+import { renderMd } from '../../lib/md';
+import {
+  getModels,
+  getRecipesByModel,
+  getTrajectory,
+  runExists,
+  modelLabel,
+  pct,
+} from '../../lib/data';
+
+const base = import.meta.env.BASE_URL;
+const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+const runHref = u('/runs');
+
+const models = getModels();
+const traj = getTrajectory();
+
+// 為每個模型組裝資料
+const modelData = models.map((m) => {
+  const recipes = getRecipesByModel(m);
+  const tModel = traj.models.find((x) => x.model === m);
+  const versions = tModel?.versions ?? [];
+  const runExistsMap: Record<string, boolean> = {};
+  for (const v of versions) runExistsMap[v.run_id] = runExists(v.run_id);
+
+  // playbook 攻法清單（取最新版）
+  const latest = recipes[recipes.length - 1];
+  const attacks = latest
+    ? latest.playbook
+        .split('\n')
+        .filter((l) => l.startsWith('## '))
+        .map((l) => {
+          const txt = l.replace(/^##\s*/, '');
+          const [svc, method] = txt.split('—').map((s) => s.trim());
+          return { service: svc, method: method ?? '' };
+        })
+    : [];
+
+  // 各版本內容（含與上一版 diff）
+  const panes = recipes.map((r, i) => {
+    const prev = i > 0 ? recipes[i - 1] : null;
+    const vInfo = versions.find((v) => v.version === r.version);
+    return {
+      version: r.version,
+      promptHtml: renderMd(r.prompt),
+      playbookHtml: renderMd(r.playbook),
+      promptRaw: r.prompt,
+      playbookRaw: r.playbook,
+      diffSummary: vInfo?.diff_summary ?? '',
+      flagsHeld: vInfo?.flags_held_pct ?? null,
+      runId: vInfo?.run_id ?? null,
+      runLinked: vInfo ? runExists(vInfo.run_id) : false,
+      hasPrev: !!prev,
+      prevVersion: prev?.version ?? '',
+      promptDiff: prev ? lineDiff(prev.prompt, r.prompt) : [],
+      playbookDiff: prev ? lineDiff(prev.playbook, r.playbook) : [],
+    };
+  });
+
+  return {
+    model: m,
+    label: modelLabel(m),
+    versions,
+    runExistsMap,
+    attacks,
+    panes,
+    latestVersion: recipes[recipes.length - 1]?.version ?? 'v1',
+  };
+});
+
+// 簡單行級 diff（給跨版本顯示）
+function lineDiff(a: string, b: string) {
+  const al = a.replace(/\r\n/g, '\n').split('\n');
+  const bl = b.replace(/\r\n/g, '\n').split('\n');
+  const aset = new Set(al.map((s) => s.trim()));
+  const bset = new Set(bl.map((s) => s.trim()));
+  const out: { type: 'add' | 'del'; text: string }[] = [];
+  for (const l of bl)
+    if (l.trim() && !aset.has(l.trim())) out.push({ type: 'add', text: l });
+  for (const l of al)
+    if (l.trim() && !bset.has(l.trim())) out.push({ type: 'del', text: l });
+  return out;
+}
+---
+
+<Layout title="防禦配方 — FORGE ⚒ 攻防工坊" active="recipe">
+  <section class="wrap recipe-page">
+    <div class="page-head rise">
+      <span class="kicker">成品 A · 主角</span>
+      <h1 class="page-title">防禦配方</h1>
+      <p class="muted page-lead">
+        依模型分軌。每模型有自己的鍛造軌跡;挑你用的模型,拿對應的
+        <code class="ic">PROMPT.md</code> 與 <code class="ic">playbook.md</code>。
+      </p>
+    </div>
+
+    <!-- 模型分軌切換 -->
+    <div class="model-switch rise" data-recipe-switch>
+      <span class="ms-label mono">分軌模型</span>
+      {
+        modelData.map((md, i) => (
+          <button
+            class={`ms-pill${i === 0 ? ' is-active' : ''}`}
+            data-rmodel={md.model}
+          >
+            <i class="ms-dot" />
+            {md.label}
+            <span class="ms-count mono">{md.panes.length}版</span>
+          </button>
+        ))
+      }
+    </div>
+
+    {
+      modelData.map((md, mi) => (
+        <div
+          class="model-track"
+          data-rmodel-track={md.model}
+          style={mi === 0 ? '' : 'display:none'}
+        >
+          {/* 鍛造軌跡 */}
+          <div class="card traj-card corner-marks">
+            <div class="block-head">
+              <span class="kicker">鍛造軌跡 · 成效隨版本</span>
+              <span class="mono faint traj-summary">
+                {md.versions
+                  .map((v) => `${v.version} ${pct(v.flags_held_pct)}`)
+                  .join(' → ')}
+              </span>
+            </div>
+            <TrajectoryCurve
+              versions={md.versions}
+              runExistsMap={md.runExistsMap}
+              runHref={runHref}
+            />
+          </div>
+
+          {/* 主體：左版本/playbook，右 PROMPT/diff */}
+          <div class="recipe-body">
+            <aside class="recipe-side">
+              <div class="card side-card">
+                <h3 class="side-title mono">版本</h3>
+                <div class="version-pills" data-vsel={md.model}>
+                  {md.panes.map((p, pi) => (
+                    <button
+                      class={`vpill${pi === md.panes.length - 1 ? ' is-active' : ''}`}
+                      data-vpill={p.version}
+                    >
+                      <span class="vdot" />
+                      {p.version}
+                      {p.flagsHeld != null && (
+                        <span class="vpct mono">{pct(p.flagsHeld)}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div class="card side-card">
+                <h3 class="side-title mono">已會擋什麼</h3>
+                <p class="faint side-note">playbook 收編的攻法 = 拿到手的戰力</p>
+                <ul class="attack-list">
+                  {md.attacks.map((a) => (
+                    <li>
+                      <span class="al-svc mono">{a.service}</span>
+                      <span class="al-method">{a.method}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
+
+            <div class="recipe-main">
+              {md.panes.map((p, pi) => (
+                <div
+                  class="vpane"
+                  data-vpane={`${md.model}:${p.version}`}
+                  style={pi === md.panes.length - 1 ? '' : 'display:none'}
+                >
+                  <div class="vpane-head">
+                    <div class="vpane-meta">
+                      <span class="tag tag-ember mono">{p.version}</span>
+                      {p.flagsHeld != null && (
+                        <span class="tag tag-hold mono">
+                          守住率 {pct(p.flagsHeld)}
+                        </span>
+                      )}
+                      {p.runLinked && p.runId && (
+                        <a
+                          class="tag mono run-link"
+                          href={u(`/runs/${p.runId}/`)}
+                        >
+                          ▶ 看這版的 run 回放
+                        </a>
+                      )}
+                    </div>
+                    {p.diffSummary && (
+                      <p class="diff-summary muted">{p.diffSummary}</p>
+                    )}
+                  </div>
+
+                  {/* 分頁：PROMPT / playbook / diff */}
+                  <div class="doc-tabs" data-doctabs>
+                    <button class="dtab is-active" data-dtab="prompt">
+                      PROMPT.md
+                    </button>
+                    <button class="dtab" data-dtab="playbook">
+                      playbook.md
+                    </button>
+                    {p.hasPrev && (
+                      <button class="dtab" data-dtab="diff">
+                        與 {p.prevVersion} diff
+                      </button>
+                    )}
+                  </div>
+
+                  <div class="doc-pane" data-doc="prompt">
+                    <div class="doc-bar">
+                      <span class="mono faint"># PROMPT.md · {p.version}</span>
+                      <button
+                        class="copy-btn"
+                        data-copy={`#rp-${md.model}-${p.version}`}
+                      >
+                        ⧉ 複製
+                      </button>
+                    </div>
+                    <div class="md doc-md" set:html={p.promptHtml} />
+                    <pre id={`rp-${md.model}-${p.version}`} hidden>
+                      {p.promptRaw}
+                    </pre>
+                  </div>
+
+                  <div class="doc-pane" data-doc="playbook" style="display:none">
+                    <div class="doc-bar">
+                      <span class="mono faint"># playbook.md · {p.version}</span>
+                      <button
+                        class="copy-btn"
+                        data-copy={`#pb-${md.model}-${p.version}`}
+                      >
+                        ⧉ 複製
+                      </button>
+                    </div>
+                    <div class="md doc-md" set:html={p.playbookHtml} />
+                    <pre id={`pb-${md.model}-${p.version}`} hidden>
+                      {p.playbookRaw}
+                    </pre>
+                  </div>
+
+                  {p.hasPrev && (
+                    <div class="doc-pane" data-doc="diff" style="display:none">
+                      <div class="doc-bar">
+                        <span class="mono faint">
+                          {p.prevVersion} → {p.version}
+                        </span>
+                      </div>
+                      <div class="diff-block mono">
+                        <p class="diff-cat faint">PROMPT.md</p>
+                        {p.promptDiff.length === 0 && (
+                          <p class="faint diff-none">（無行級差異）</p>
+                        )}
+                        {p.promptDiff.map((d) => (
+                          <div class={`diff-line diff-${d.type}`}>
+                            <span class="diff-sign">
+                              {d.type === 'add' ? '+' : '−'}
+                            </span>
+                            {d.text}
+                          </div>
+                        ))}
+                        <p class="diff-cat faint">playbook.md</p>
+                        {p.playbookDiff.length === 0 && (
+                          <p class="faint diff-none">（無行級差異）</p>
+                        )}
+                        {p.playbookDiff.map((d) => (
+                          <div class={`diff-line diff-${d.type}`}>
+                            <span class="diff-sign">
+                              {d.type === 'add' ? '+' : '−'}
+                            </span>
+                            {d.text}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))
+    }
+
+    <!-- 如何取得 / 運行 -->
+    <div class="run-section">
+      <div class="run-col card corner-marks">
+        <span class="kicker">如何取得</span>
+        <h3 class="run-title">clone defense-recipe</h3>
+        <pre class="code"><button class="copy-btn" data-copy="prev">⧉ 複製</button><span class="cmt"># 取得防禦配方（PROMPT.md / run.sh / self_verify / playbook.md）</span>
+git clone https://github.com/weiqi-kids/ctf.works
+cd ctf.works/defense/defense-recipe</pre>
+      </div>
+
+      <div class="run-col card corner-marks">
+        <span class="kicker">如何運行</span>
+        <h3 class="run-title">前置 → run.sh</h3>
+        <pre class="code"><button class="copy-btn" data-copy="prev">⧉ 複製</button><span class="cmt"># 1 前置：claude CLI 已登入；服務在隔離環境</span>
+claude --version
+<span class="cmt"># 2 啟動防禦巡檢迴圈（會讀服務碼、出最小 diff、跑 self_verify）</span>
+./run.sh</pre>
+        <ul class="run-notes muted">
+          <li>
+            <span class="ember">會碰你主機什麼:</span>
+            讀/改服務原始碼路徑、重啟服務、寫 playbook.md。
+          </li>
+          <li>
+            <span class="ember">隔離建議:</span>
+            在 VM 或容器內跑;限制 agent 只能存取服務目錄。
+          </li>
+          <li>
+            改完每洞各跑一次 exploit + 合法功能測試;SLA 掉就自動回滾。
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    .ic {
+      font-family: var(--font-mono);
+      color: var(--c-ember-bright);
+      font-size: 0.88em;
+    }
+    .recipe-page {
+      padding-top: clamp(2rem, 5vw, 3.5rem);
+    }
+    .page-head {
+      margin-bottom: 1.8rem;
+    }
+    .page-title {
+      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      margin: 0.6rem 0 0.8rem;
+    }
+    .page-lead {
+      max-width: 620px;
+    }
+
+    .model-switch {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.6rem;
+      flex-wrap: wrap;
+    }
+    .ms-label {
+      font-size: 0.72rem;
+      color: var(--c-faint);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .ms-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      padding: 0.45rem 0.85rem;
+      background: var(--c-steel);
+      border: 1px solid var(--c-ash);
+      border-radius: 2px;
+      color: var(--c-mist);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ms-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--c-smoke);
+    }
+    .ms-count {
+      color: var(--c-faint);
+      font-size: 0.68rem;
+    }
+    .ms-pill:hover {
+      border-color: var(--c-ember);
+      color: var(--c-bone);
+    }
+    .ms-pill.is-active {
+      border-color: var(--c-ember);
+      color: var(--c-ember-bright);
+      background: var(--c-coal-glow);
+    }
+    .ms-pill.is-active .ms-dot {
+      background: var(--c-ember);
+      box-shadow: 0 0 8px var(--c-ember);
+    }
+
+    .traj-card {
+      padding: 1.3rem;
+      margin-bottom: 1.2rem;
+    }
+    .block-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .traj-summary {
+      font-size: 0.74rem;
+    }
+
+    .recipe-body {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 1.2rem;
+      align-items: start;
+    }
+    .recipe-side {
+      display: grid;
+      gap: 1rem;
+      position: sticky;
+      top: 76px;
+    }
+    .side-card {
+      padding: 1.1rem;
+    }
+    .side-title {
+      font-size: 0.84rem;
+      color: var(--c-ember-bright);
+      margin-bottom: 0.8rem;
+    }
+    .side-note {
+      font-size: 0.7rem;
+      margin-bottom: 0.7rem;
+    }
+    .version-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .vpill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.5rem 0.7rem;
+      background: var(--c-iron);
+      border: 1px solid var(--c-slate);
+      border-radius: 2px;
+      color: var(--c-mist);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .vdot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid var(--c-smoke);
+    }
+    .vpct {
+      margin-left: auto;
+      color: var(--c-faint);
+      font-size: 0.7rem;
+    }
+    .vpill:hover {
+      border-color: var(--c-ash);
+      color: var(--c-bone);
+    }
+    .vpill.is-active {
+      border-color: var(--c-ember);
+      color: var(--c-ember-bright);
+      background: var(--c-coal-glow);
+    }
+    .vpill.is-active .vdot {
+      background: var(--c-ember);
+      border-color: var(--c-ember);
+      box-shadow: 0 0 8px var(--c-ember);
+    }
+
+    .attack-list {
+      list-style: none;
+      display: grid;
+      gap: 0.5rem;
+    }
+    .attack-list li {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid var(--c-slate);
+      border-left: 2px solid var(--c-ember);
+      border-radius: 2px;
+      background: var(--c-iron);
+    }
+    .al-svc {
+      font-size: 0.74rem;
+      color: var(--c-ember-bright);
+    }
+    .al-method {
+      font-size: 0.8rem;
+      color: var(--c-mist);
+    }
+
+    .recipe-main {
+      min-width: 0;
+    }
+    .vpane-head {
+      margin-bottom: 1rem;
+    }
+    .vpane-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+    .run-link {
+      color: var(--c-ember-bright);
+      border-color: var(--c-ember-deep);
+    }
+    .run-link:hover {
+      background: var(--c-coal-glow);
+    }
+    .diff-summary {
+      font-size: 0.85rem;
+    }
+
+    .doc-tabs {
+      display: flex;
+      gap: 0.3rem;
+      border-bottom: 1px solid var(--c-slate);
+      margin-bottom: 1rem;
+    }
+    .dtab {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 0.5rem 0.8rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--c-faint);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .dtab:hover {
+      color: var(--c-bone);
+    }
+    .dtab.is-active {
+      color: var(--c-ember-bright);
+      border-bottom-color: var(--c-ember);
+    }
+    .doc-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.7rem;
+      font-size: 0.74rem;
+    }
+    .doc-bar .copy-btn {
+      position: static;
+    }
+    .doc-md {
+      background: var(--c-iron);
+      border: 1px solid var(--c-slate);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.3rem;
+    }
+
+    .diff-block {
+      background: var(--c-void);
+      border: 1px solid var(--c-slate);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-size: 0.78rem;
+      overflow-x: auto;
+    }
+    .diff-cat {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0.8rem 0 0.4rem;
+    }
+    .diff-cat:first-child {
+      margin-top: 0;
+    }
+    .diff-line {
+      padding: 0.1rem 0.4rem;
+      white-space: pre-wrap;
+      border-radius: 2px;
+    }
+    .diff-add {
+      color: var(--c-hold);
+      background: rgba(56, 211, 159, 0.07);
+    }
+    .diff-del {
+      color: var(--c-stolen);
+      background: rgba(255, 59, 92, 0.07);
+    }
+    .diff-sign {
+      display: inline-block;
+      width: 1rem;
+      opacity: 0.7;
+    }
+    .diff-none {
+      font-size: 0.78rem;
+      padding-left: 0.4rem;
+    }
+
+    .run-section {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 1.2rem;
+      margin-top: 2.5rem;
+    }
+    .run-col {
+      padding: 1.3rem;
+    }
+    .run-title {
+      font-size: 1.05rem;
+      margin: 0.6rem 0 1rem;
+    }
+    .run-notes {
+      list-style: none;
+      display: grid;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      font-size: 0.82rem;
+    }
+    .run-notes li {
+      padding-left: 0.9rem;
+      border-left: 1px solid var(--c-slate);
+    }
+
+    @media (max-width: 880px) {
+      .recipe-body {
+        grid-template-columns: 1fr;
+      }
+      .recipe-side {
+        position: static;
+      }
+      .run-section {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <script>
+    // 模型分軌切換
+    document.querySelectorAll('[data-recipe-switch]').forEach((sw) => {
+      sw.querySelectorAll<HTMLElement>('.ms-pill').forEach((pill) => {
+        pill.addEventListener('click', () => {
+          const m = pill.getAttribute('data-rmodel');
+          sw.querySelectorAll('.ms-pill').forEach((p) =>
+            p.classList.toggle('is-active', p === pill),
+          );
+          document
+            .querySelectorAll<HTMLElement>('[data-rmodel-track]')
+            .forEach((t) => {
+              t.style.display =
+                t.getAttribute('data-rmodel-track') === m ? '' : 'none';
+            });
+        });
+      });
+    });
+
+    // 版本切換（每個模型 track 內）
+    document.querySelectorAll<HTMLElement>('[data-vsel]').forEach((sel) => {
+      const model = sel.getAttribute('data-vsel');
+      sel.querySelectorAll<HTMLElement>('.vpill').forEach((pill) => {
+        pill.addEventListener('click', () => {
+          const v = pill.getAttribute('data-vpill');
+          sel
+            .querySelectorAll('.vpill')
+            .forEach((p) => p.classList.toggle('is-active', p === pill));
+          document
+            .querySelectorAll<HTMLElement>(`[data-vpane^="${model}:"]`)
+            .forEach((pane) => {
+              pane.style.display =
+                pane.getAttribute('data-vpane') === `${model}:${v}`
+                  ? ''
+                  : 'none';
+            });
+        });
+      });
+    });
+
+    // PROMPT/playbook/diff 分頁
+    document.querySelectorAll<HTMLElement>('[data-doctabs]').forEach((tabs) => {
+      const pane = tabs.closest<HTMLElement>('.vpane');
+      tabs.querySelectorAll<HTMLElement>('.dtab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          const which = tab.getAttribute('data-dtab');
+          tabs
+            .querySelectorAll('.dtab')
+            .forEach((t) => t.classList.toggle('is-active', t === tab));
+          pane
+            ?.querySelectorAll<HTMLElement>('[data-doc]')
+            .forEach((d) => {
+              d.style.display =
+                d.getAttribute('data-doc') === which ? '' : 'none';
+            });
+        });
+      });
+    });
+  </script>
+</Layout>

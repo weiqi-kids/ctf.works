@@ -1,0 +1,287 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getAttackIntel, getRuns, runExists, modelLabel } from '../../lib/data';
+
+const base = import.meta.env.BASE_URL;
+const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+
+const intel = getAttackIntel();
+
+// 榜單
+const board = [...intel.leaderboard].sort(
+  (a, b) => b.flags_stolen - a.flags_stolen,
+);
+const maxStolen = Math.max(1, ...board.map((b) => b.flags_stolen));
+
+// 攻法時間軸（依 first_round 排序）
+const timeline = [...intel.methods].sort(
+  (a, b) => a.first_round - b.first_round,
+);
+const maxRound = Math.max(1, ...timeline.map((m) => m.first_round));
+
+// 也從 runs 收集 attack_events 當補充時間軸
+const runs = getRuns();
+---
+
+<Layout title="攻擊情報 — FORGE ⚒ 攻防工坊" active="attack">
+  <section class="wrap atk-page">
+    <div class="page-head rise">
+      <span class="kicker">輸出 B · 次要 · 壓力來源</span>
+      <h1 class="page-title">攻擊情報</h1>
+      <p class="muted page-lead">
+        捶打配方的壓力來源。模型 × 方法榜單 + 攻法首見時間軸——配方的每一次升級,都是被這些攻法逼出來的。
+      </p>
+    </div>
+
+    <!-- 榜單 -->
+    <div class="card atk-block corner-marks rise">
+      <span class="kicker">模型 × 偷旗榜單</span>
+      <div class="board">
+        {
+          board.map((b, i) => (
+            <div class="board-row">
+              <span class="board-rank mono">#{i + 1}</span>
+              <span class="board-model">{modelLabel(b.model)}</span>
+              <div class="board-bar-wrap">
+                <div
+                  class="board-bar"
+                  style={`width:${(b.flags_stolen / maxStolen) * 100}%`}
+                />
+              </div>
+              <span class="board-val mono">{b.flags_stolen}</span>
+              <div class="board-svcs">
+                {(b.services ?? []).map((s) => (
+                  <span class="tag mono">{s}</span>
+                ))}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- 攻法時間軸 -->
+    <div class="card atk-block corner-marks rise">
+      <span class="kicker">攻法首見時間軸</span>
+      <p class="muted atk-sub">每個攻法第一次得手的 round;點 run 看當場回放。</p>
+      <div class="timeline">
+        <div class="tl-axis">
+          {
+            [0, 0.5, 1].map((t) => (
+              <span class="tl-tick mono" style={`left:${t * 100}%`}>
+                round {Math.round(t * maxRound)}
+              </span>
+            ))
+          }
+        </div>
+        {
+          timeline.map((m) => {
+            const pos = (m.first_round / maxRound) * 100;
+            const linkedRun = (m.runs ?? []).find((r) => runExists(r));
+            return (
+              <div class="tl-item">
+                <div class="tl-track">
+                  <span class="tl-line" style={`width:${pos}%`} />
+                  <span class="tl-dot" style={`left:${pos}%`} />
+                </div>
+                <div class="tl-card">
+                  <div class="tl-card-head">
+                    <span class="tl-method mono">{m.method}</span>
+                    <span class="tag tag-ember mono">{m.service}</span>
+                  </div>
+                  <div class="tl-card-meta mono faint">
+                    {modelLabel(m.model)} · 首見 round {m.first_round}
+                    {linkedRun && (
+                      <a class="tl-runlink ember" href={u(`/runs/${linkedRun}/`)}>
+                        {' '}
+                        · ▶ {linkedRun}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
+    </div>
+
+    <p class="atk-foot faint mono rise">
+      攻擊情報是次要輸出。主角是 <a class="ember" href={u('/recipe/')}>防禦配方</a>
+      ——這些攻法存在的意義,是逼配方變強。
+    </p>
+  </section>
+
+  <style>
+    .atk-page {
+      padding-top: clamp(2rem, 5vw, 3.5rem);
+    }
+    .page-head {
+      margin-bottom: 1.8rem;
+    }
+    .page-title {
+      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      margin: 0.6rem 0 0.8rem;
+    }
+    .page-lead {
+      max-width: 640px;
+    }
+    .ember {
+      color: var(--c-ember-bright);
+    }
+
+    .atk-block {
+      padding: 1.4rem;
+      margin-bottom: 1.2rem;
+    }
+    .atk-sub {
+      font-size: 0.82rem;
+      margin: 0.5rem 0 1.4rem;
+    }
+
+    .board {
+      display: grid;
+      gap: 0.8rem;
+      margin-top: 1.2rem;
+    }
+    .board-row {
+      display: grid;
+      grid-template-columns: 36px 130px 1fr 44px auto;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .board-rank {
+      color: var(--c-ember-bright);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .board-model {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .board-bar-wrap {
+      height: 14px;
+      background: var(--c-steel);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .board-bar {
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        var(--c-ember-deep),
+        var(--c-ember-bright)
+      );
+      box-shadow: 0 0 12px -2px var(--c-ember);
+    }
+    .board-val {
+      text-align: right;
+      font-weight: 700;
+      color: var(--c-bone);
+    }
+    .board-svcs {
+      display: flex;
+      gap: 0.3rem;
+    }
+
+    .timeline {
+      margin-top: 1rem;
+      position: relative;
+    }
+    .tl-axis {
+      position: relative;
+      height: 22px;
+      margin: 0 0 0.6rem;
+      border-bottom: 1px dashed var(--c-slate);
+    }
+    .tl-tick {
+      position: absolute;
+      transform: translateX(-50%);
+      font-size: 0.66rem;
+      color: var(--c-faint);
+      top: 2px;
+    }
+    .tl-item {
+      margin-bottom: 1rem;
+    }
+    .tl-track {
+      position: relative;
+      height: 14px;
+      margin-bottom: 0.4rem;
+    }
+    .tl-line {
+      position: absolute;
+      top: 6px;
+      left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--c-ember-deep));
+    }
+    .tl-dot {
+      position: absolute;
+      top: 1px;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--c-ember);
+      border: 2px solid var(--c-void);
+      box-shadow: 0 0 10px var(--c-ember);
+    }
+    .tl-card {
+      border: 1px solid var(--c-slate);
+      border-left: 2px solid var(--c-ember);
+      border-radius: 2px;
+      padding: 0.7rem 0.9rem;
+      background: var(--c-iron);
+    }
+    .tl-card-head {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.3rem;
+    }
+    .tl-method {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--c-bone);
+    }
+    .tl-card-meta {
+      font-size: 0.74rem;
+    }
+    .tl-runlink:hover {
+      text-decoration: underline;
+    }
+
+    .atk-foot {
+      font-size: 0.8rem;
+      margin-top: 1.5rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--c-slate);
+    }
+
+    @media (max-width: 620px) {
+      .board-row {
+        grid-template-columns: 28px 1fr 36px;
+        grid-template-areas:
+          'rank model val'
+          'bar bar bar'
+          'svc svc svc';
+      }
+      .board-rank {
+        grid-area: rank;
+      }
+      .board-model {
+        grid-area: model;
+      }
+      .board-bar-wrap {
+        grid-area: bar;
+      }
+      .board-val {
+        grid-area: val;
+      }
+      .board-svcs {
+        grid-area: svc;
+      }
+    }
+  </style>
+</Layout>
