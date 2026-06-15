@@ -8,6 +8,7 @@ import {
   getTrajectory,
   runExists,
   modelLabel,
+  serviceLabel,
   pct,
 } from '../../lib/data';
 
@@ -34,7 +35,7 @@ const modelData = models.map((m) => {
         .filter((l) => l.startsWith('## '))
         .map((l) => {
           const txt = l.replace(/^##\s*/, '');
-          const [svc, method] = txt.split('—').map((s) => s.trim());
+          const [svc, method] = txt.split('：').map((s) => s.trim());
           return { service: svc, method: method ?? '' };
         })
     : [];
@@ -86,13 +87,13 @@ function lineDiff(a: string, b: string) {
 }
 ---
 
-<Layout title="防禦配方 — FORGE ⚒ 攻防工坊" active="recipe">
+<Layout title="防禦配方｜FORGE ⚒ 攻防工坊" active="recipe">
   <section class="wrap recipe-page">
     <div class="page-head rise">
       <span class="kicker">成品 A · 主角</span>
       <h1 class="page-title">防禦配方</h1>
       <p class="muted page-lead">
-        依模型分軌。每模型有自己的鍛造軌跡;挑你用的模型,拿對應的
+        依模型分軌。每個模型有自己的鍛造軌跡；挑你用的模型，拿對應的
         <code class="ic">PROMPT.md</code> 與 <code class="ic">playbook.md</code>。
       </p>
     </div>
@@ -161,11 +162,11 @@ function lineDiff(a: string, b: string) {
 
               <div class="card side-card">
                 <h3 class="side-title mono">已會擋什麼</h3>
-                <p class="faint side-note">playbook 收編的攻法 = 拿到手的戰力</p>
+                <p class="faint side-note">playbook 收編的攻法，就是拿到手的戰力</p>
                 <ul class="attack-list">
                   {md.attacks.map((a) => (
                     <li>
-                      <span class="al-svc mono">{a.service}</span>
+                      <span class="al-svc mono">{serviceLabel(a.service)}</span>
                       <span class="al-method">{a.method}</span>
                     </li>
                   ))}
@@ -311,15 +312,15 @@ claude --version
 ./run.sh</pre>
         <ul class="run-notes muted">
           <li>
-            <span class="ember">會碰你主機什麼:</span>
-            讀/改服務原始碼路徑、重啟服務、寫 playbook.md。
+            <span class="ember">會碰你主機什麼：</span>
+            讀／改服務原始碼路徑、重啟服務、寫 playbook.md。
           </li>
           <li>
-            <span class="ember">隔離建議:</span>
-            在 VM 或容器內跑;限制 agent 只能存取服務目錄。
+            <span class="ember">隔離建議：</span>
+            在 VM 或容器內跑；限制 agent 只能存取服務目錄。
           </li>
           <li>
-            改完每洞各跑一次 exploit + 合法功能測試;SLA 掉就自動回滾。
+            改完每洞各跑一次 exploit 與合法功能測試；SLA 掉就自動回滾。
           </li>
         </ul>
       </div>
@@ -329,7 +330,7 @@ claude --version
   <style>
     .ic {
       font-family: var(--font-mono);
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
       font-size: 0.88em;
     }
     .recipe-page {
@@ -339,11 +340,11 @@ claude --version
       margin-bottom: 1.8rem;
     }
     .page-title {
-      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      font-size: clamp(2rem, 4.5vw, var(--text-3xl));
       margin: 0.6rem 0 0.8rem;
     }
     .page-lead {
-      max-width: 620px;
+      max-width: 720px;
     }
 
     .model-switch {
@@ -354,8 +355,8 @@ claude --version
       flex-wrap: wrap;
     }
     .ms-label {
-      font-size: 0.72rem;
-      color: var(--c-faint);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
       letter-spacing: 0.1em;
       text-transform: uppercase;
     }
@@ -364,37 +365,36 @@ claude --version
       align-items: center;
       gap: 0.45rem;
       font-family: var(--font-mono);
-      font-size: 0.82rem;
+      font-size: var(--text-xs);
       padding: 0.45rem 0.85rem;
-      background: var(--c-steel);
-      border: 1px solid var(--c-ash);
-      border-radius: 2px;
-      color: var(--c-mist);
+      background: var(--bg-surface);
+      border: var(--line);
+      border-radius: 0.25rem;
+      color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
     }
     .ms-dot {
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: var(--c-smoke);
+      background: var(--text-muted);
     }
     .ms-count {
-      color: var(--c-faint);
-      font-size: 0.68rem;
+      color: var(--text-muted);
+      font-size: var(--text-xs);
     }
     .ms-pill:hover {
-      border-color: var(--c-ember);
-      color: var(--c-bone);
+      border-color: var(--color-accent);
+      color: var(--text-primary);
     }
     .ms-pill.is-active {
-      border-color: var(--c-ember);
-      color: var(--c-ember-bright);
-      background: var(--c-coal-glow);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--badge-high-bg);
     }
     .ms-pill.is-active .ms-dot {
-      background: var(--c-ember);
-      box-shadow: 0 0 8px var(--c-ember);
+      background: var(--color-accent);
     }
 
     .traj-card {
@@ -410,12 +410,12 @@ claude --version
       flex-wrap: wrap;
     }
     .traj-summary {
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
     }
 
     .recipe-body {
       display: grid;
-      grid-template-columns: 240px 1fr;
+      grid-template-columns: 300px 1fr;
       gap: 1.2rem;
       align-items: start;
     }
@@ -423,18 +423,18 @@ claude --version
       display: grid;
       gap: 1rem;
       position: sticky;
-      top: 76px;
+      top: 88px;
     }
     .side-card {
       padding: 1.1rem;
     }
     .side-title {
-      font-size: 0.84rem;
-      color: var(--c-ember-bright);
+      font-size: var(--text-xs);
+      color: var(--color-accent);
       margin-bottom: 0.8rem;
     }
     .side-note {
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       margin-bottom: 0.7rem;
     }
     .version-pills {
@@ -447,12 +447,12 @@ claude --version
       align-items: center;
       gap: 0.5rem;
       font-family: var(--font-mono);
-      font-size: 0.8rem;
+      font-size: var(--text-xs);
       padding: 0.5rem 0.7rem;
-      background: var(--c-iron);
-      border: 1px solid var(--c-slate);
-      border-radius: 2px;
-      color: var(--c-mist);
+      background: var(--bg-base);
+      border: var(--line);
+      border-radius: 0.25rem;
+      color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
       text-align: left;
@@ -461,26 +461,25 @@ claude --version
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      border: 1px solid var(--c-smoke);
+      border: 1px solid var(--text-muted);
     }
     .vpct {
       margin-left: auto;
-      color: var(--c-faint);
-      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-size: var(--text-xs);
     }
     .vpill:hover {
-      border-color: var(--c-ash);
-      color: var(--c-bone);
+      border-color: var(--color-accent);
+      color: var(--text-primary);
     }
     .vpill.is-active {
-      border-color: var(--c-ember);
-      color: var(--c-ember-bright);
-      background: var(--c-coal-glow);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--badge-high-bg);
     }
     .vpill.is-active .vdot {
-      background: var(--c-ember);
-      border-color: var(--c-ember);
-      box-shadow: 0 0 8px var(--c-ember);
+      background: var(--color-accent);
+      border-color: var(--color-accent);
     }
 
     .attack-list {
@@ -493,18 +492,18 @@ claude --version
       flex-direction: column;
       gap: 0.1rem;
       padding: 0.5rem 0.6rem;
-      border: 1px solid var(--c-slate);
-      border-left: 2px solid var(--c-ember);
-      border-radius: 2px;
-      background: var(--c-iron);
+      border: var(--line);
+      border-left: 3px solid var(--color-accent);
+      border-radius: 0.25rem;
+      background: var(--bg-base);
     }
     .al-svc {
-      font-size: 0.74rem;
-      color: var(--c-ember-bright);
+      font-size: var(--text-xs);
+      color: var(--color-accent);
     }
     .al-method {
-      font-size: 0.8rem;
-      color: var(--c-mist);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
     }
 
     .recipe-main {
@@ -521,67 +520,69 @@ claude --version
       margin-bottom: 0.6rem;
     }
     .run-link {
-      color: var(--c-ember-bright);
-      border-color: var(--c-ember-deep);
+      color: var(--color-accent);
+      border-color: var(--color-accent);
+      text-decoration: none;
     }
     .run-link:hover {
-      background: var(--c-coal-glow);
+      background: var(--badge-high-bg);
+      text-decoration: none;
     }
     .diff-summary {
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
     }
 
     .doc-tabs {
       display: flex;
       gap: 0.3rem;
-      border-bottom: 1px solid var(--c-slate);
+      border-bottom: var(--line);
       margin-bottom: 1rem;
     }
     .dtab {
       font-family: var(--font-mono);
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       padding: 0.5rem 0.8rem;
       background: none;
       border: none;
       border-bottom: 2px solid transparent;
-      color: var(--c-faint);
+      color: var(--text-muted);
       cursor: pointer;
       transition: all 0.15s;
     }
     .dtab:hover {
-      color: var(--c-bone);
+      color: var(--text-primary);
     }
     .dtab.is-active {
-      color: var(--c-ember-bright);
-      border-bottom-color: var(--c-ember);
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
     }
     .doc-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 0.7rem;
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
     }
     .doc-bar .copy-btn {
       position: static;
     }
     .doc-md {
-      background: var(--c-iron);
-      border: 1px solid var(--c-slate);
+      background: var(--bg-surface);
+      border: var(--line);
       border-radius: var(--radius);
       padding: 1.1rem 1.3rem;
     }
 
     .diff-block {
-      background: var(--c-void);
-      border: 1px solid var(--c-slate);
+      background: var(--bg-code);
+      border: var(--line);
       border-radius: var(--radius);
       padding: 1rem;
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       overflow-x: auto;
     }
     .diff-cat {
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin: 0.8rem 0 0.4rem;
@@ -592,15 +593,15 @@ claude --version
     .diff-line {
       padding: 0.1rem 0.4rem;
       white-space: pre-wrap;
-      border-radius: 2px;
+      border-radius: 0.25rem;
     }
     .diff-add {
-      color: var(--c-hold);
-      background: rgba(56, 211, 159, 0.07);
+      color: var(--color-pass);
+      background: var(--badge-pass-bg);
     }
     .diff-del {
-      color: var(--c-stolen);
-      background: rgba(255, 59, 92, 0.07);
+      color: var(--color-critical);
+      background: var(--badge-critical-bg);
     }
     .diff-sign {
       display: inline-block;
@@ -608,7 +609,7 @@ claude --version
       opacity: 0.7;
     }
     .diff-none {
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       padding-left: 0.4rem;
     }
 
@@ -620,9 +621,10 @@ claude --version
     }
     .run-col {
       padding: 1.3rem;
+      min-width: 0; /* 允許欄位收縮，長指令由 pre.code 的 overflow-x 捲動 */
     }
     .run-title {
-      font-size: 1.05rem;
+      font-size: var(--text-lg);
       margin: 0.6rem 0 1rem;
     }
     .run-notes {
@@ -630,11 +632,11 @@ claude --version
       display: grid;
       gap: 0.6rem;
       margin-top: 1rem;
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
     .run-notes li {
       padding-left: 0.9rem;
-      border-left: 1px solid var(--c-slate);
+      border-left: 2px solid var(--border-subtle);
     }
 
     @media (max-width: 880px) {

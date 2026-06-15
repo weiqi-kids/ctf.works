@@ -28,7 +28,7 @@ const modelCards = models.map((m) => {
     ? latest.playbook
         .split('\n')
         .filter((l) => l.startsWith('## '))
-        .map((l) => l.replace(/^##\s*/, '').split('—').pop()?.trim() || l)
+        .map((l) => l.replace(/^##\s*/, '').split('：').pop()?.trim() || l)
     : [];
   return {
     model: m,
@@ -46,27 +46,27 @@ const primary = modelCards[0];
 
 // 首屏成效摘要（取最新一場 normal run）
 const latestRun = runs.find((r) => r.kind !== 'portability') ?? runs[0];
-const heldPct = latestRun ? pct(latestRun.defense.flags_held_pct) : '—';
-const slaPct = latestRun ? pct(latestRun.defense.sla_uptime_pct) : '—';
+const heldPct = latestRun ? pct(latestRun.defense.flags_held_pct) : '無';
+const slaPct = latestRun ? pct(latestRun.defense.sla_uptime_pct) : '無';
 const methodsCount = primary?.playbookList.length ?? 0;
 const replayRun = latestRun?.run_id;
 
 // 工坊主迴圈拓樸（mermaid flowchart）
 const loopChart = `flowchart LR
-  A["攻擊方 AI<br/>放野持續捶打"] -->|exploit attack_data| V["vulnbox<br/>notes filelocker vault"]
+  A["攻擊方 AI<br/>在實戰裡持續捶打"] -->|exploit attack_data| V["vulnbox<br/>notes filelocker vault"]
   D["防禦守護 AI<br/>巡檢加最小 diff 修補"] -->|patch self_verify| V
   V -->|ForcAD 計分| S["守住率 SLA"]
   V -->|攻法補洞日誌| L["鍛造軌跡<br/>PROMPT playbook 版本史"]
   L -->|沉澱成配方| D
   S -.->|信任證據| R["可搬到你主機的配方"]
-  classDef hot fill:#2a1408,stroke:#ff5a1f,color:#ff7a3c;
-  classDef box fill:#1b1e24,stroke:#3a414c,color:#e8eaed;
+  classDef hot fill:#fceee8,stroke:#b86a2a,stroke-width:2px,color:#b86a2a;
+  classDef box fill:#ecedf0,stroke:#d5d6da,stroke-width:2px,color:#1e2030;
   class A,D hot;
   class V,S,L,R box;`;
 ---
 
 <Layout
-  title="FORGE ⚒ 攻防工坊 — 在 AI 攻擊下煉成的防禦配方"
+  title="FORGE ⚒ 攻防工坊｜在 AI 攻擊下煉成的防禦配方"
   active="home"
 >
   <!-- 第一屏：prompt + 套用步驟 + 模型切換 -->
@@ -75,12 +75,12 @@ const loopChart = `flowchart LR
       <span class="kicker">攻防工坊 · ATTACK / DEFENSE FORGE</span>
       <h1 class="hero-title">
         一份可搬到你主機的<span class="ember">防禦配方</span><br />
-        —— 在 AI 攻擊下煉成
+        在 AI 攻擊下煉成
       </h1>
       <p class="hero-sub muted">
-        放野的 AI 攻擊方持續捶打,防禦方反覆優化,沉澱成可複製的 prompt。
-        對外可複製的核心是 <code class="ic">PROMPT.md</code>(防禦 agent 的腦)+
-        <code class="ic">playbook.md</code>(攻法 → 安全堵法的記憶)。
+        AI 攻擊方在實戰裡持續捶打，防禦方反覆修補，最後沉澱成一份可複製的 prompt。
+        對外可複製的核心是 <code class="ic">PROMPT.md</code>（防禦 agent 的腦），加上
+        <code class="ic">playbook.md</code>（記下攻法與安全堵法）。
       </p>
     </div>
 
@@ -114,7 +114,7 @@ const loopChart = `flowchart LR
                 <span class="mono prompt-file">
                   # PROMPT.md
                   <span class="faint">
-                    ({c.version} · 由 {c.label} 煉成)
+                    （{c.version} · 由 {c.label} 煉成）
                   </span>
                 </span>
                 <button class="copy-btn" data-copy={`#raw-${c.model}`}>
@@ -148,7 +148,7 @@ const loopChart = `flowchart LR
             <span class="step-n mono">2</span>
             <div>
               <strong>設前置環境</strong>
-              <span class="muted">claude CLI + 服務隔離</span>
+              <span class="muted">claude CLI 與服務隔離</span>
             </div>
           </li>
           <li>
@@ -205,7 +205,7 @@ const loopChart = `flowchart LR
     </div>
     <Mermaid chart={loopChart} id="loop-topo" />
     <p class="loop-note faint mono">
-      攻擊方與防禦方可為不同 AI/模型;配方依模型分軌,訪客挑自己用的模型拿對應 prompt。
+      攻擊方與防禦方可以是不同 AI／模型；配方依模型分軌，訪客挑自己用的模型，拿對應的 prompt。
     </p>
   </section>
 
@@ -213,24 +213,24 @@ const loopChart = `flowchart LR
     .ic {
       font-family: var(--font-mono);
       font-size: 0.85em;
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
     }
     .hero {
       padding-top: clamp(2.5rem, 6vw, 5rem);
     }
     .hero-head {
-      max-width: 760px;
+      max-width: 820px;
     }
     .hero-title {
-      font-size: clamp(2rem, 5.5vw, 3.4rem);
+      font-size: clamp(2.5rem, 5.5vw, var(--text-3xl));
       font-weight: 700;
       letter-spacing: -0.02em;
       margin: 1rem 0 1.2rem;
       line-height: 1.08;
     }
     .hero-sub {
-      font-size: 1rem;
-      max-width: 640px;
+      font-size: var(--text-base);
+      max-width: 720px;
     }
 
     .model-switch {
@@ -241,8 +241,8 @@ const loopChart = `flowchart LR
       flex-wrap: wrap;
     }
     .ms-label {
-      font-size: 0.72rem;
-      color: var(--c-faint);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
       letter-spacing: 0.1em;
       text-transform: uppercase;
     }
@@ -251,38 +251,37 @@ const loopChart = `flowchart LR
       align-items: center;
       gap: 0.45rem;
       font-family: var(--font-mono);
-      font-size: 0.82rem;
+      font-size: var(--text-xs);
       padding: 0.45rem 0.85rem;
-      background: var(--c-steel);
-      border: 1px solid var(--c-ash);
-      border-radius: 2px;
-      color: var(--c-mist);
+      background: var(--bg-surface);
+      border: var(--line);
+      border-radius: 0.25rem;
+      color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
     }
     .ms-dot {
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: var(--c-smoke);
+      background: var(--text-muted);
     }
     .ms-pill:hover {
-      border-color: var(--c-ember);
-      color: var(--c-bone);
+      border-color: var(--color-accent);
+      color: var(--text-primary);
     }
     .ms-pill.is-active {
-      border-color: var(--c-ember);
-      color: var(--c-ember-bright);
-      background: var(--c-coal-glow);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--badge-high-bg);
     }
     .ms-pill.is-active .ms-dot {
-      background: var(--c-ember);
-      box-shadow: 0 0 8px var(--c-ember);
+      background: var(--color-accent);
     }
 
     .hero-grid {
       display: grid;
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: 1fr 340px;
       gap: 1rem;
       align-items: start;
     }
@@ -296,36 +295,36 @@ const loopChart = `flowchart LR
       align-items: center;
       padding-bottom: 0.7rem;
       margin-bottom: 0.9rem;
-      border-bottom: 1px solid var(--c-slate);
+      border-bottom: var(--line);
     }
     .prompt-file {
-      font-size: 0.82rem;
-      color: var(--c-bone);
+      font-size: var(--text-xs);
+      color: var(--text-primary);
     }
     .prompt-bar .copy-btn {
       position: static;
     }
     .prompt-body {
-      max-height: 280px;
+      max-height: 320px;
       overflow: hidden;
       -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent);
       mask-image: linear-gradient(180deg, #000 78%, transparent);
     }
     .prompt-foot {
-      font-size: 0.72rem;
+      font-size: var(--text-xs);
       margin-top: 0.8rem;
       padding-top: 0.7rem;
-      border-top: 1px solid var(--c-slate);
+      border-top: var(--line);
     }
 
     .apply-card {
       padding: 1.3rem;
       position: sticky;
-      top: 76px;
+      top: 88px;
     }
     .apply-title {
-      font-size: 0.95rem;
-      color: var(--c-ember-bright);
+      font-size: var(--text-sm);
+      color: var(--color-accent);
       margin-bottom: 1rem;
     }
     .apply-steps {
@@ -341,25 +340,29 @@ const loopChart = `flowchart LR
     }
     .step-n {
       flex-shrink: 0;
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
       display: grid;
       place-items: center;
-      border: 1px solid var(--c-ember-deep);
-      color: var(--c-ember-bright);
-      border-radius: 2px;
-      font-size: 0.8rem;
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+      background: var(--badge-high-bg);
+      border-radius: 0.25rem;
+      font-size: var(--text-xs);
       font-weight: 700;
     }
     .apply-steps strong {
       display: block;
-      font-size: 0.86rem;
+      font-size: var(--text-sm);
       margin-bottom: 0.15rem;
+    }
+    .apply-steps .muted {
+      font-size: var(--text-xs);
     }
     .step-cmd {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--c-faint);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
       word-break: break-all;
     }
     .apply-cta {
@@ -380,12 +383,12 @@ const loopChart = `flowchart LR
       gap: 0.25rem;
     }
     .proof-sep {
-      color: var(--c-ash);
-      font-size: 1.5rem;
+      color: var(--text-muted);
+      font-size: var(--text-lg);
     }
     .proof-link {
-      font-size: 0.8rem;
-      color: var(--c-ember-bright);
+      font-size: var(--text-xs);
+      color: var(--color-accent);
       margin-left: auto;
     }
     .proof-link:hover {
@@ -406,15 +409,15 @@ const loopChart = `flowchart LR
       margin-bottom: 1.4rem;
     }
     .section-title {
-      font-size: clamp(1.4rem, 3.5vw, 2rem);
+      font-size: var(--text-xl);
       margin-top: 0.6rem;
     }
     .loop-note {
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
       margin-top: 1rem;
     }
 
-    @media (max-width: 820px) {
+    @media (max-width: 880px) {
       .hero-grid {
         grid-template-columns: 1fr;
       }

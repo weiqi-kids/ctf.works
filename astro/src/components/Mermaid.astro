@@ -16,25 +16,31 @@ const { chart, id = 'mmd-' + Math.random().toString(36).slice(2, 9) } = Astro.pr
 <script>
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
 
+  // 色彩值 = design-tokens colors.md 的 hex fallback（Mermaid 不支援 oklch）
+  // useMaxWidth:false → 圖以原生尺寸渲染，文字嚴格維持 20px 不被容器縮放
+  //（窄畫面由 .mermaid-box 的 overflow-x:auto 提供水平捲動）。
   mermaid.initialize({
     startOnLoad: false,
     theme: 'base',
+    flowchart: { useMaxWidth: false },
+    sequence: { useMaxWidth: false },
     themeVariables: {
-      darkMode: true,
-      background: '#121418',
-      primaryColor: '#1b1e24',
-      primaryBorderColor: '#3a414c',
-      primaryTextColor: '#e8eaed',
-      lineColor: '#5d6675',
-      secondaryColor: '#2a1408',
-      tertiaryColor: '#121418',
-      fontFamily: "'JetBrains Mono', monospace",
-      fontSize: '13px',
-      actorBorder: '#ff5a1f',
-      actorBkg: '#1b1e24',
-      actorTextColor: '#e8eaed',
-      signalColor: '#aab2bf',
-      signalTextColor: '#aab2bf',
+      darkMode: false,
+      background: '#ecedf0',
+      primaryColor: '#ecedf0',
+      primaryBorderColor: '#d5d6da',
+      primaryTextColor: '#1e2030',
+      lineColor: '#8a8c98',
+      secondaryColor: '#fceee8',
+      tertiaryColor: '#ecedf0',
+      fontFamily:
+        "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+      fontSize: '20px',
+      actorBorder: '#b86a2a',
+      actorBkg: '#ecedf0',
+      actorTextColor: '#1e2030',
+      signalColor: '#5e6070',
+      signalTextColor: '#5e6070',
     },
   });
 
@@ -50,7 +56,7 @@ const { chart, id = 'mmd-' + Math.random().toString(36).slice(2, 9) } = Astro.pr
         out.dataset.done = '1';
       } catch (err) {
         out.innerHTML =
-          '<pre style="color:#ff3b5c;font-size:.75rem">mermaid render error</pre>';
+          '<pre style="color:#c93135;font-size:1.125rem">mermaid render error</pre>';
         console.error(err);
       }
     }

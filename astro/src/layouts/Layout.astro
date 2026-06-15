@@ -9,7 +9,7 @@ interface Props {
 }
 const {
   title,
-  description = '一份可搬到你主機的防禦配方 —— 在 AI 攻擊下煉成。',
+  description = '一份在 AI 攻擊下煉成、可搬到你主機的防禦配方。',
   active,
 } = Astro.props;
 const base = import.meta.env.BASE_URL;
@@ -34,17 +34,17 @@ const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
       <div class="wrap footer-inner">
         <span class="mono">⚒ FORGE · 攻防工坊</span>
         <span class="faint mono"
-          >在 AI 攻擊下煉成的防禦配方 · 靜態製品 · mock 資料</span
+          >在 AI 攻擊下煉成的防禦配方 · 靜態網站 · mock 資料</span
         >
       </div>
     </footer>
 
     <style>
       main {
-        min-height: calc(100vh - 60px - 80px);
+        min-height: calc(100vh - 72px - 80px);
       }
       .site-footer {
-        border-top: 1px solid var(--c-slate);
+        border-top: var(--line);
         margin-top: 4rem;
         padding: 1.6rem 0;
       }
@@ -53,7 +53,7 @@ const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
         justify-content: space-between;
         align-items: center;
         gap: 1rem;
-        font-size: 0.75rem;
+        font-size: var(--text-xs);
         flex-wrap: wrap;
       }
       .footer-inner .mono {

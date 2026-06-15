@@ -14,6 +14,7 @@ const rows = runs.map((r) => {
   return {
     run_id: r.run_id,
     date,
+    source: r.fingerprint.source,
     kind: r.kind ?? 'normal',
     defModel: r.fingerprint.defender.model,
     defModelLabel: modelLabel(r.fingerprint.defender.model),
@@ -34,13 +35,13 @@ const models = [...new Set(rows.map((r) => r.defModel))];
 const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
 ---
 
-<Layout title="攻防歷史 — FORGE ⚒ 攻防工坊" active="runs">
+<Layout title="攻防歷史｜FORGE ⚒ 攻防工坊" active="runs">
   <section class="wrap runs-page">
     <div class="page-head rise">
       <span class="kicker">攻防歷史 · RUN INDEX</span>
       <h1 class="page-title">攻防歷史</h1>
       <p class="muted page-lead">
-        每一場都是配方鍛造軌跡的一個錨點。依模型 / 配方版本 / 日期篩,點任一場看完整回放。
+        每一場都是配方鍛造軌跡的一個錨點。依模型／配方版本／日期篩選，點任一場看完整回放。
       </p>
     </div>
 
@@ -98,10 +99,13 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
           >
             <div class="rc-top">
               <span class="rc-id mono">{r.run_id}</span>
-              <span
-                class={`tag mono ${r.kind === 'portability' ? 'tag-ember' : ''}`}
-              >
-                {r.kind}
+              <span class="rc-tags">
+                {r.source && <span class="tag mono">來源 {r.source}</span>}
+                <span
+                  class={`tag mono ${r.kind === 'portability' ? 'tag-ember' : ''}`}
+                >
+                  {r.kind}
+                </span>
               </span>
             </div>
             <div class="rc-vs mono">
@@ -139,7 +143,7 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
       }
     </div>
     <p class="no-match faint mono" data-no-match style="display:none">
-      — 沒有符合篩選的場次 —
+      沒有符合篩選的場次
     </p>
   </section>
 
@@ -151,11 +155,11 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
       margin-bottom: 1.8rem;
     }
     .page-title {
-      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      font-size: clamp(2rem, 4.5vw, var(--text-3xl));
       margin: 0.6rem 0 0.8rem;
     }
     .page-lead {
-      max-width: 620px;
+      max-width: 720px;
     }
 
     .filters {
@@ -163,7 +167,7 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
       gap: 0.9rem;
       margin-bottom: 1.8rem;
       padding-bottom: 1.4rem;
-      border-bottom: 1px solid var(--c-slate);
+      border-bottom: var(--line);
     }
     .filter-group {
       display: flex;
@@ -172,36 +176,36 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
       flex-wrap: wrap;
     }
     .f-label {
-      font-size: 0.7rem;
-      color: var(--c-faint);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      min-width: 70px;
+      min-width: 110px;
     }
     .chip {
       font-family: var(--font-mono);
-      font-size: 0.76rem;
+      font-size: var(--text-xs);
       padding: 0.35rem 0.7rem;
-      background: var(--c-steel);
-      border: 1px solid var(--c-slate);
-      border-radius: 2px;
-      color: var(--c-mist);
+      background: var(--bg-surface);
+      border: var(--line);
+      border-radius: 0.25rem;
+      color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
     }
     .chip:hover {
-      border-color: var(--c-ash);
-      color: var(--c-bone);
+      border-color: var(--color-accent);
+      color: var(--text-primary);
     }
     .chip.is-active {
-      border-color: var(--c-ember);
-      color: var(--c-ember-bright);
-      background: var(--c-coal-glow);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--badge-high-bg);
     }
 
     .run-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
       gap: 1.1rem;
     }
     .run-card {
@@ -210,37 +214,47 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
       flex-direction: column;
       gap: 0.9rem;
       transition: border-color 0.18s, transform 0.18s;
+      color: var(--text-primary);
+      text-decoration: none;
     }
     .run-card:hover {
-      border-color: var(--c-ember);
+      border-color: var(--color-accent);
       transform: translateY(-2px);
+      text-decoration: none;
     }
     .rc-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 0.6rem;
+    }
+    .rc-tags {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      flex-shrink: 0;
     }
     .rc-id {
-      font-size: 0.92rem;
-      color: var(--c-bone);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
       font-weight: 600;
     }
     .rc-vs {
       display: flex;
       align-items: center;
       gap: 0.6rem;
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       flex-wrap: wrap;
     }
     .rc-x {
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
     }
     .rc-metrics {
       display: flex;
       gap: 1.4rem;
       padding: 0.6rem 0;
-      border-top: 1px solid var(--c-slate);
-      border-bottom: 1px solid var(--c-slate);
+      border-top: var(--line);
+      border-bottom: var(--line);
     }
     .rc-m {
       display: flex;
@@ -248,19 +262,19 @@ const recipes = [...new Set(rows.map((r) => r.recipe))].sort();
       gap: 0.2rem;
     }
     .rc-m .metric-val {
-      font-size: 1.5rem;
+      font-size: var(--text-lg);
     }
     .rc-foot {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
     }
     .rc-flag.stolen {
-      color: var(--c-stolen);
+      color: var(--color-critical);
     }
     .rc-flag.clean {
-      color: var(--c-hold);
+      color: var(--color-pass);
     }
     .rc-go {
       font-weight: 600;

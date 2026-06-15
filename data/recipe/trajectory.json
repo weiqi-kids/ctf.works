@@ -3,9 +3,9 @@
     {
       "model": "claude-fable-5",
       "versions": [
-        {"version": "v1", "run_id": "2026-06-08-a", "flags_held_pct": 0.51, "diff_summary": "初版:三洞基本堵法"},
+        {"version": "v1", "run_id": "2026-06-08-a", "flags_held_pct": 0.51, "diff_summary": "初版：三洞基本堵法"},
         {"version": "v2", "run_id": "2026-06-09-a", "flags_held_pct": 0.78, "diff_summary": "filelocker 補 URL 編碼繞過"},
-        {"version": "v3", "run_id": "2026-06-10-a", "flags_held_pct": 0.92, "diff_summary": "vault 補負數/溢位 idx"}
+        {"version": "v3", "run_id": "2026-06-10-a", "flags_held_pct": 0.92, "diff_summary": "vault 補負數／溢位 idx"}
       ]
     }
   ]

@@ -2,6 +2,7 @@
   "run_id": "2026-06-09-portability",
   "kind": "portability",
   "fingerprint": {
+    "source": "weiqi-kids",
     "image_hash": "sha256:cleanbox",
     "service_commit": "abc1234",
     "forcad": {"round_time": 60, "flag_lifetime": 5},

@@ -31,13 +31,13 @@ const totalBaselineLost = baselineCmp.reduce(
 );
 ---
 
-<Layout title="信任證據 — FORGE ⚒ 攻防工坊" active="evidence">
+<Layout title="信任證據｜FORGE ⚒ 攻防工坊" active="evidence">
   <section class="wrap ev-page">
     <div class="page-head rise">
       <span class="kicker">信任證據 · WHY ADOPT</span>
       <h1 class="page-title">為什麼值得採用</h1>
       <p class="muted page-lead">
-        守住率、SLA over rounds、不補基線對照、可攜性。配方不是說漂亮話,是在攻擊下守得住的數據。
+        守住率、SLA over rounds、不補基線對照、可攜性。配方不是講漂亮話，是在攻擊下守得住的數據。
       </p>
     </div>
 
@@ -74,6 +74,7 @@ const totalBaselineLost = baselineCmp.reduce(
       <div class="card ev-block corner-marks rise">
         <span class="kicker">修補成效 · 逐服務</span>
         <p class="muted ev-sub">每洞補丁是否真的擋住（改完跑 exploit 驗證）</p>
+        <div class="table-scroll">
         <table class="grid">
           <thead>
             <tr>
@@ -98,7 +99,7 @@ const totalBaselineLost = baselineCmp.reduce(
                     <td class="muted">{vuln}</td>
                     <td>
                       {ok === undefined ? (
-                        <span class="faint mono">—</span>
+                        <span class="faint mono">未測</span>
                       ) : ok ? (
                         <span class="tag tag-hold mono">✓ 擋住</span>
                       ) : (
@@ -111,11 +112,13 @@ const totalBaselineLost = baselineCmp.reduce(
             }
           </tbody>
         </table>
+        </div>
       </div>
 
       <div class="card ev-block corner-marks rise">
         <span class="kicker">不補基線對照 · 自殘</span>
-        <p class="muted ev-sub">配方守住 vs 同場「不補」基線丟旗;自殘 = 補丁誤傷合法功能</p>
+        <p class="muted ev-sub">配方守住 vs 同場「不補」基線丟旗；自殘就是補丁誤傷合法功能</p>
+        <div class="table-scroll">
         <table class="grid">
           <thead>
             <tr>
@@ -142,6 +145,7 @@ const totalBaselineLost = baselineCmp.reduce(
             }
           </tbody>
         </table>
+        </div>
       </div>
     </div>
 
@@ -162,7 +166,7 @@ const totalBaselineLost = baselineCmp.reduce(
                   <span class="pc-id">{r.run_id}</span>
                 </div>
                 <p class="muted pc-desc">
-                  乾淨黃金映像({r.fingerprint.image_hash})上重跑同配方,
+                  乾淨黃金映像（{r.fingerprint.image_hash}）上重跑同配方，
                   驗證不是靠殘留狀態守住。
                 </p>
                 <div class="pc-metrics">
@@ -192,17 +196,17 @@ const totalBaselineLost = baselineCmp.reduce(
       margin-bottom: 1.8rem;
     }
     .page-title {
-      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      font-size: clamp(2rem, 4.5vw, var(--text-3xl));
       margin: 0.6rem 0 0.8rem;
     }
     .page-lead {
-      max-width: 640px;
+      max-width: 720px;
     }
     .stolen-val {
-      color: var(--c-stolen);
+      color: var(--color-critical);
     }
     .ember {
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
     }
 
     .ev-hero {
@@ -218,13 +222,14 @@ const totalBaselineLost = baselineCmp.reduce(
       gap: 0.4rem;
     }
     .ev-m-note {
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       margin-top: 0.3rem;
     }
 
     .ev-block {
       padding: 1.3rem;
       margin-bottom: 1.2rem;
+      min-width: 0; /* grid item 可收縮；表格過寬由 .table-scroll 捲動 */
     }
     .block-head {
       display: flex;
@@ -235,7 +240,7 @@ const totalBaselineLost = baselineCmp.reduce(
       flex-wrap: wrap;
     }
     .ev-sub {
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
       margin: 0.5rem 0 1rem;
     }
     .ev-two {
@@ -244,20 +249,20 @@ const totalBaselineLost = baselineCmp.reduce(
       gap: 1.1rem;
     }
     .stolen-tag {
-      color: var(--c-stolen);
-      border-color: #5c1e2b;
-      background: #2a0d14;
+      color: var(--color-critical);
+      border-color: var(--color-critical);
+      background: var(--badge-critical-bg);
     }
     .ev-runlink {
-      color: var(--c-mist);
+      color: var(--text-secondary);
     }
     .ev-runlink:hover {
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
     }
 
     .port-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 1rem;
     }
     .port-card {
@@ -265,39 +270,45 @@ const totalBaselineLost = baselineCmp.reduce(
       flex-direction: column;
       gap: 0.6rem;
       padding: 1.1rem;
-      border: 1px solid var(--c-slate);
+      border: var(--line);
       border-radius: var(--radius);
-      background: var(--c-iron);
+      background: var(--bg-base);
       transition: all 0.18s;
+      color: var(--text-primary);
+      text-decoration: none;
     }
     .port-card:hover {
-      border-color: var(--c-ember);
+      border-color: var(--color-accent);
       transform: translateY(-2px);
+      text-decoration: none;
     }
     .pc-head {
       display: flex;
       align-items: center;
       gap: 0.6rem;
-      font-size: 0.84rem;
+      font-size: var(--text-xs);
     }
     .pc-id {
-      color: var(--c-bone);
+      color: var(--text-primary);
       font-weight: 600;
     }
     .pc-desc {
-      font-size: 0.8rem;
+      font-size: var(--text-xs);
     }
     .pc-metrics {
       display: flex;
       gap: 1.5rem;
       padding: 0.5rem 0;
-      border-top: 1px solid var(--c-slate);
+      border-top: var(--line);
     }
     .pc-metrics b {
-      font-size: 1.1rem;
+      font-size: var(--text-sm);
+    }
+    .pc-metrics small {
+      font-size: var(--text-xs);
     }
     .pc-go {
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
     }
 
     @media (max-width: 820px) {

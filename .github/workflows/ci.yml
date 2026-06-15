@@ -1,0 +1,66 @@
+name: CI
+
+# PR 與 push 都先過「資料契約驗證 + 網站 build」才算綠燈；
+# 只有 push 到 main 才部署到 GitHub Pages。
+# 投稿攻防結果的流程見 CONTRIBUTING.md。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 避免並發部署互踩；PR 之間不互相取消。
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── 守門 1：資料契約（schema + 隱含契約）──────────────────────────────
+  validate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r tools/requirements.txt
+      - name: 驗證 data/（schema + --strict 隱含契約）
+        run: python tools/validate_data.py --strict
+
+  # ── 守門 2：網站 build（順便產 Pages artifact）────────────────────────
+  build:
+    needs: validate-data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: astro/package-lock.json
+      - run: npm ci
+        working-directory: astro
+      - run: npm run build
+        working-directory: astro
+      - name: 上傳 Pages 製品（僅 main）
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: astro/dist
+
+  # ── 部署：僅 main，且前兩關都過 ───────────────────────────────────────
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -21,7 +21,7 @@ const runJson = JSON.stringify(run);
   <section class="rp-panel rp-board corner-marks">
     <div class="rp-panel-head">
       <span class="kicker">棋盤 · team × 服務（逐 round 上色）</span>
-      <span class="rp-round-badge mono" data-round-badge>round —</span>
+      <span class="rp-round-badge mono" data-round-badge>round 0</span>
     </div>
     <div class="rp-board-grid" data-board></div>
     <div class="rp-legend mono">
@@ -78,19 +78,21 @@ const runJson = JSON.stringify(run);
       <span class="kicker">本 round 事件</span>
     </div>
     <div class="rp-events-body" data-events>
-      <p class="faint mono rp-empty">— 無事件 —</p>
+      <p class="faint mono rp-empty">本 round 沒有事件</p>
     </div>
   </section>
 </div>
 
-<style>
+<!-- is:global：棋盤格/事件/版本標記皆由 JS 動態建立，無 Astro scope 屬性，
+     scoped 樣式不會命中（grid 會壞掉）。class 全為 rp- 前綴，不致衝突。 -->
+<style is:global>
   .replay {
     display: grid;
     gap: 1rem;
   }
   .rp-panel {
-    background: linear-gradient(180deg, var(--c-iron), var(--c-void));
-    border: 1px solid var(--c-slate);
+    background: var(--bg-surface);
+    border: var(--line);
     border-radius: var(--radius);
     padding: 1.1rem 1.2rem;
   }
@@ -102,12 +104,12 @@ const runJson = JSON.stringify(run);
     gap: 1rem;
   }
   .rp-round-badge {
-    font-size: 0.78rem;
-    color: var(--c-ember-bright);
-    border: 1px solid var(--c-ember-deep);
-    background: var(--c-coal-glow);
+    font-size: var(--text-xs);
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    background: var(--badge-high-bg);
     padding: 0.2rem 0.6rem;
-    border-radius: 2px;
+    border-radius: 0.25rem;
   }
 
   /* 棋盤格 */
@@ -117,7 +119,7 @@ const runJson = JSON.stringify(run);
   }
   .rp-row {
     display: grid;
-    grid-template-columns: 120px repeat(3, 1fr);
+    grid-template-columns: 140px repeat(3, 1fr);
     gap: 6px;
     align-items: stretch;
   }
@@ -126,57 +128,65 @@ const runJson = JSON.stringify(run);
     flex-direction: column;
     justify-content: center;
     font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--c-mist);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     padding: 0.4rem 0.2rem;
   }
   .rp-row-head small {
-    color: var(--c-faint);
-    font-size: 0.64rem;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
   }
   .rp-colhead {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     letter-spacing: 0.06em;
-    color: var(--c-faint);
+    color: var(--text-muted);
     text-transform: uppercase;
     text-align: center;
     padding-bottom: 2px;
   }
+  .rp-colhead small {
+    display: block;
+    font-size: var(--text-xs);
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text-secondary);
+    margin-top: 1px;
+  }
   .rp-cell {
-    border-radius: 2px;
+    border-radius: 0.25rem;
     padding: 0.65rem 0.5rem;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
+    font-weight: 600;
     border: 1px solid transparent;
     transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-    min-height: 48px;
+    min-height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1.2;
   }
   .rp-cell.s-hold {
-    background: #0c1f1a;
-    border-color: #1c5a48;
-    color: var(--c-hold);
+    background: var(--badge-pass-bg);
+    border-color: var(--color-pass);
+    color: var(--color-pass);
   }
   .rp-cell.s-stolen {
-    background: #2a0d14;
-    border-color: #5c1e2b;
-    color: var(--c-stolen);
-    box-shadow: inset 0 0 18px -6px rgba(255, 59, 92, 0.5);
+    background: var(--badge-critical-bg);
+    border-color: var(--color-critical);
+    color: var(--color-critical);
   }
   .rp-cell.s-mumble {
-    background: #211c08;
-    border-color: #5a4d18;
-    color: var(--c-mumble);
+    background: var(--badge-medium-bg);
+    border-color: var(--color-warn);
+    color: var(--color-warn);
   }
   .rp-cell.s-down {
-    background: #14161a;
-    border-color: var(--c-ash);
-    color: var(--c-down);
+    background: var(--bg-overlay);
+    border-color: var(--border-subtle);
+    color: var(--text-muted);
   }
 
   .rp-legend,
@@ -184,8 +194,8 @@ const runJson = JSON.stringify(run);
     display: flex;
     gap: 1rem;
     margin-top: 0.8rem;
-    font-size: 0.68rem;
-    color: var(--c-faint);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     flex-wrap: wrap;
   }
   .rp-legend span,
@@ -201,22 +211,22 @@ const runJson = JSON.stringify(run);
     display: inline-block;
   }
   .sw-hold {
-    background: var(--c-hold);
+    background: var(--color-pass);
   }
   .sw-stolen {
-    background: var(--c-stolen);
+    background: var(--color-critical);
   }
   .sw-mumble {
-    background: var(--c-mumble);
+    background: var(--color-warn);
   }
   .sw-down {
-    background: var(--c-down);
+    background: var(--text-muted);
   }
   .sw-held {
-    background: var(--c-hold);
+    background: var(--color-pass);
   }
   .sw-sla {
-    background: var(--c-ember);
+    background: var(--color-accent);
   }
 
   /* sparkline */
@@ -236,43 +246,44 @@ const runJson = JSON.stringify(run);
   }
   .rp-btn {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     padding: 0.45rem 0.7rem;
-    background: var(--c-steel);
-    color: var(--c-bone);
-    border: 1px solid var(--c-ash);
-    border-radius: 2px;
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+    border: var(--line);
+    border-radius: 0.25rem;
     cursor: pointer;
     transition: all 0.15s;
   }
   .rp-btn:hover {
-    border-color: var(--c-ember);
-    color: var(--c-ember-bright);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
   }
   .rp-play {
-    background: var(--c-ember);
-    color: #1a0a02;
-    border-color: var(--c-ember);
-    min-width: 84px;
+    background: var(--color-accent);
+    color: var(--bg-base);
+    border-color: var(--color-accent);
+    min-width: 96px;
   }
   .rp-play:hover {
-    background: var(--c-ember-bright);
-    color: #1a0a02;
+    background: var(--color-high);
+    color: var(--bg-base);
   }
   .rp-speed {
     margin-left: auto;
-    font-size: 0.74rem;
-    color: var(--c-faint);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
   }
   .rp-speed select {
     font-family: var(--font-mono);
-    background: var(--c-steel);
-    color: var(--c-bone);
-    border: 1px solid var(--c-ash);
-    border-radius: 2px;
+    font-size: var(--text-xs);
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+    border: var(--line);
+    border-radius: 0.25rem;
     padding: 0.25rem 0.4rem;
   }
 
@@ -285,40 +296,39 @@ const runJson = JSON.stringify(run);
     appearance: none;
     height: 6px;
     border-radius: 3px;
-    background: var(--c-slate);
+    background: var(--bg-overlay);
     outline: none;
     cursor: pointer;
   }
   .rp-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background: var(--c-ember);
-    border: 2px solid var(--c-void);
-    box-shadow: 0 0 10px rgba(255, 90, 31, 0.7);
+    background: var(--color-accent);
+    border: 2px solid var(--bg-base);
     cursor: pointer;
   }
   .rp-range::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background: var(--c-ember);
-    border: 2px solid var(--c-void);
+    background: var(--color-accent);
+    border: 2px solid var(--bg-base);
     cursor: pointer;
   }
   .rp-markers {
     position: relative;
-    height: 20px;
+    height: 28px;
     margin-top: 2px;
   }
   .rp-marker {
     position: absolute;
     transform: translateX(-50%);
     font-family: var(--font-mono);
-    font-size: 0.62rem;
-    color: var(--c-ember-bright);
+    font-size: var(--text-xs);
+    color: var(--color-accent);
     white-space: nowrap;
     top: 0;
   }
@@ -326,14 +336,13 @@ const runJson = JSON.stringify(run);
     content: '▲';
     display: block;
     text-align: center;
-    font-size: 0.55rem;
   }
   .rp-scrub-labels {
     display: flex;
     gap: 0.3rem;
     margin-top: 0.4rem;
-    font-size: 0.74rem;
-    color: var(--c-mist);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
   }
 
   /* 事件 */
@@ -345,47 +354,48 @@ const runJson = JSON.stringify(run);
     display: flex;
     gap: 0.7rem;
     align-items: flex-start;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     padding: 0.55rem 0.7rem;
-    border-radius: 2px;
-    border: 1px solid var(--c-slate);
-    background: var(--c-iron);
+    border-radius: 0.25rem;
+    border: var(--line);
+    background: var(--bg-base);
     animation: rise 0.35s ease both;
   }
   .rp-event .ico {
-    font-size: 1rem;
+    font-size: var(--text-sm);
     line-height: 1.2;
   }
   .rp-event.ev-attack {
-    border-color: #5c1e2b;
+    border-color: var(--color-critical);
+    background: var(--badge-critical-bg);
   }
   .rp-event.ev-defense {
-    border-color: #1c5a48;
+    border-color: var(--color-pass);
+    background: var(--badge-pass-bg);
   }
   .rp-event.ev-version {
-    border-color: var(--c-ember-deep);
-    background: var(--c-coal-glow);
+    border-color: var(--color-accent);
+    background: var(--badge-high-bg);
   }
   .rp-event .txt strong {
-    color: var(--c-bone);
+    color: var(--text-primary);
     font-family: var(--font-mono);
     font-weight: 600;
   }
   .rp-event .meta {
-    color: var(--c-faint);
+    color: var(--text-secondary);
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
   .rp-empty {
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
   }
 
   @media (max-width: 620px) {
     .rp-row {
-      grid-template-columns: 84px repeat(3, 1fr);
+      grid-template-columns: 96px repeat(3, 1fr);
     }
     .rp-cell {
-      font-size: 0.66rem;
       padding: 0.5rem 0.25rem;
     }
   }
@@ -429,6 +439,14 @@ const runJson = JSON.stringify(run);
   }
 
   const SERVICES = ['notes', 'filelocker', 'vault'];
+  // 服務的中文說明（英文是實際服務名，中文幫不熟的人看懂用途）。
+  const SERVICE_CN: Record<string, string> = {
+    notes: '記事',
+    filelocker: '檔案櫃',
+    vault: '金庫',
+  };
+  const svcLabel = (s: string) =>
+    SERVICE_CN[s] ? `${s}（${SERVICE_CN[s]}）` : s;
   const TEAM_LABELS: Record<string, { name: string; sub: string }> = {
     defense: { name: '防禦①', sub: '配方守護' },
     baseline: { name: '基線', sub: '不補對照' },
@@ -546,7 +564,10 @@ const runJson = JSON.stringify(run);
     headerRow.className = 'rp-row';
     headerRow.innerHTML =
       '<div></div>' +
-      SERVICES.map((s) => `<div class="rp-colhead">${s}</div>`).join('');
+      SERVICES.map(
+        (s) =>
+          `<div class="rp-colhead">${s}<small>${SERVICE_CN[s] ?? ''}</small></div>`,
+      ).join('');
     boardEl.appendChild(headerRow);
 
     const cellRefs = new Map<string, HTMLElement>();
@@ -590,21 +611,22 @@ const runJson = JSON.stringify(run);
       .y0(H - pad)
       .y1((d) => y(d.held));
 
+    // 色彩 = design-tokens hex fallback（pass 綠 / accent 橙 / text-primary 游標）
     svg
       .append('path')
       .attr('d', heldArea(cum) || '')
-      .attr('fill', 'rgba(56,211,159,0.10)');
+      .attr('fill', 'rgba(30,128,80,0.10)');
     svg
       .append('path')
       .attr('d', heldLine(cum) || '')
       .attr('fill', 'none')
-      .attr('stroke', '#38d39f')
+      .attr('stroke', '#1e8050')
       .attr('stroke-width', 2);
     svg
       .append('path')
       .attr('d', slaLine(cum) || '')
       .attr('fill', 'none')
-      .attr('stroke', '#ff5a1f')
+      .attr('stroke', '#b86a2a')
       .attr('stroke-width', 1.5)
       .attr('stroke-dasharray', '4 3');
 
@@ -613,14 +635,14 @@ const runJson = JSON.stringify(run);
       .append('line')
       .attr('y1', pad)
       .attr('y2', H - pad)
-      .attr('stroke', '#e8eaed')
+      .attr('stroke', '#1e2030')
       .attr('stroke-width', 1)
-      .attr('opacity', 0.6);
+      .attr('opacity', 0.5);
     const heldDot = svg
       .append('circle')
       .attr('r', 3.5)
-      .attr('fill', '#38d39f');
-    const slaDot = svg.append('circle').attr('r', 3.5).attr('fill', '#ff5a1f');
+      .attr('fill', '#1e8050');
+    const slaDot = svg.append('circle').attr('r', 3.5).attr('fill', '#b86a2a');
 
     // ── 渲染某一格 frame
     function render(idx: number) {
@@ -642,7 +664,7 @@ const runJson = JSON.stringify(run);
         evs.push(
           `<div class="rp-event ev-attack"><span class="ico">🗡</span><div class="txt"><strong>攻擊 ${ml(
             a.model,
-          )}</strong> · ${a.service} · ${a.method}<div class="meta">偷到 ${victim} flag</div></div></div>`,
+          )}</strong> · ${svcLabel(a.service)} · ${a.method}<div class="meta">偷到 ${victim} flag</div></div></div>`,
         );
       }
       for (const d of f.defense_events) {
@@ -654,13 +676,13 @@ const runJson = JSON.stringify(run);
           evs.push(
             `<div class="rp-event ev-defense"><span class="ico">🛡</span><div class="txt"><strong>防禦 ${ml(
               run.fingerprint.defender.model,
-            )}</strong> · ${d.service}<div class="meta">${d.action}</div></div></div>`,
+            )}</strong> · ${svcLabel(d.service)}<div class="meta">${d.action}</div></div></div>`,
           );
         }
       }
       eventsEl.innerHTML = evs.length
         ? evs.join('')
-        : '<p class="faint mono rp-empty">— 本 round 無事件 —</p>';
+        : '<p class="faint mono rp-empty">本 round 沒有事件</p>';
 
       // sparkline 游標
       const cx = x(f.round);

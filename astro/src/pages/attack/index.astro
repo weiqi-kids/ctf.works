@@ -1,6 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getAttackIntel, getRuns, runExists, modelLabel } from '../../lib/data';
+import {
+  getAttackIntel,
+  getRuns,
+  runExists,
+  modelLabel,
+  serviceLabel,
+} from '../../lib/data';
 
 const base = import.meta.env.BASE_URL;
 const u = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
@@ -23,13 +29,13 @@ const maxRound = Math.max(1, ...timeline.map((m) => m.first_round));
 const runs = getRuns();
 ---
 
-<Layout title="攻擊情報 — FORGE ⚒ 攻防工坊" active="attack">
+<Layout title="攻擊情報｜FORGE ⚒ 攻防工坊" active="attack">
   <section class="wrap atk-page">
     <div class="page-head rise">
       <span class="kicker">輸出 B · 次要 · 壓力來源</span>
       <h1 class="page-title">攻擊情報</h1>
       <p class="muted page-lead">
-        捶打配方的壓力來源。模型 × 方法榜單 + 攻法首見時間軸——配方的每一次升級,都是被這些攻法逼出來的。
+        捶打配方的壓力來源。模型 × 方法榜單，加上攻法首見時間軸；配方的每一次升級，都是被這些攻法逼出來的。
       </p>
     </div>
 
@@ -51,7 +57,7 @@ const runs = getRuns();
               <span class="board-val mono">{b.flags_stolen}</span>
               <div class="board-svcs">
                 {(b.services ?? []).map((s) => (
-                  <span class="tag mono">{s}</span>
+                  <span class="tag mono">{serviceLabel(s)}</span>
                 ))}
               </div>
             </div>
@@ -63,7 +69,7 @@ const runs = getRuns();
     <!-- 攻法時間軸 -->
     <div class="card atk-block corner-marks rise">
       <span class="kicker">攻法首見時間軸</span>
-      <p class="muted atk-sub">每個攻法第一次得手的 round;點 run 看當場回放。</p>
+      <p class="muted atk-sub">每個攻法第一次得手的 round；點 run 看當場回放。</p>
       <div class="timeline">
         <div class="tl-axis">
           {
@@ -87,7 +93,7 @@ const runs = getRuns();
                 <div class="tl-card">
                   <div class="tl-card-head">
                     <span class="tl-method mono">{m.method}</span>
-                    <span class="tag tag-ember mono">{m.service}</span>
+                    <span class="tag tag-ember mono">{serviceLabel(m.service)}</span>
                   </div>
                   <div class="tl-card-meta mono faint">
                     {modelLabel(m.model)} · 首見 round {m.first_round}
@@ -107,8 +113,8 @@ const runs = getRuns();
     </div>
 
     <p class="atk-foot faint mono rise">
-      攻擊情報是次要輸出。主角是 <a class="ember" href={u('/recipe/')}>防禦配方</a>
-      ——這些攻法存在的意義,是逼配方變強。
+      攻擊情報是次要輸出，主角是 <a class="ember" href={u('/recipe/')}>防禦配方</a>。
+      這些攻法存在的意義，是逼配方變強。
     </p>
   </section>
 
@@ -120,14 +126,14 @@ const runs = getRuns();
       margin-bottom: 1.8rem;
     }
     .page-title {
-      font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+      font-size: clamp(2rem, 4.5vw, var(--text-3xl));
       margin: 0.6rem 0 0.8rem;
     }
     .page-lead {
-      max-width: 640px;
+      max-width: 720px;
     }
     .ember {
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
     }
 
     .atk-block {
@@ -135,7 +141,7 @@ const runs = getRuns();
       margin-bottom: 1.2rem;
     }
     .atk-sub {
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
       margin: 0.5rem 0 1.4rem;
     }
 
@@ -146,42 +152,39 @@ const runs = getRuns();
     }
     .board-row {
       display: grid;
-      grid-template-columns: 36px 130px 1fr 44px auto;
+      grid-template-columns: 48px 180px 1fr 56px auto;
       align-items: center;
       gap: 0.8rem;
     }
     .board-rank {
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: var(--text-sm);
     }
     .board-model {
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: var(--text-sm);
     }
     .board-bar-wrap {
       height: 14px;
-      background: var(--c-steel);
-      border-radius: 2px;
+      background: var(--bg-overlay);
+      border-radius: 0.25rem;
       overflow: hidden;
     }
     .board-bar {
       height: 100%;
-      background: linear-gradient(
-        90deg,
-        var(--c-ember-deep),
-        var(--c-ember-bright)
-      );
-      box-shadow: 0 0 12px -2px var(--c-ember);
+      background: var(--color-accent);
     }
     .board-val {
       text-align: right;
       font-weight: 700;
-      color: var(--c-bone);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
     }
     .board-svcs {
       display: flex;
       gap: 0.3rem;
+      flex-wrap: wrap;
     }
 
     .timeline {
@@ -190,15 +193,15 @@ const runs = getRuns();
     }
     .tl-axis {
       position: relative;
-      height: 22px;
+      height: 30px;
       margin: 0 0 0.6rem;
-      border-bottom: 1px dashed var(--c-slate);
+      border-bottom: 1px dashed var(--border-subtle);
     }
     .tl-tick {
       position: absolute;
       transform: translateX(-50%);
-      font-size: 0.66rem;
-      color: var(--c-faint);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
       top: 2px;
     }
     .tl-item {
@@ -214,7 +217,8 @@ const runs = getRuns();
       top: 6px;
       left: 0;
       height: 2px;
-      background: linear-gradient(90deg, transparent, var(--c-ember-deep));
+      background: var(--color-accent);
+      opacity: 0.4;
     }
     .tl-dot {
       position: absolute;
@@ -223,45 +227,45 @@ const runs = getRuns();
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: var(--c-ember);
-      border: 2px solid var(--c-void);
-      box-shadow: 0 0 10px var(--c-ember);
+      background: var(--color-accent);
+      border: 2px solid var(--bg-base);
     }
     .tl-card {
-      border: 1px solid var(--c-slate);
-      border-left: 2px solid var(--c-ember);
-      border-radius: 2px;
+      border: var(--line);
+      border-left: 3px solid var(--color-accent);
+      border-radius: 0.25rem;
       padding: 0.7rem 0.9rem;
-      background: var(--c-iron);
+      background: var(--bg-base);
     }
     .tl-card-head {
       display: flex;
       align-items: center;
       gap: 0.6rem;
       margin-bottom: 0.3rem;
+      flex-wrap: wrap;
     }
     .tl-method {
-      font-size: 0.88rem;
+      font-size: var(--text-sm);
       font-weight: 600;
-      color: var(--c-bone);
+      color: var(--text-primary);
     }
     .tl-card-meta {
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
     }
     .tl-runlink:hover {
       text-decoration: underline;
     }
 
     .atk-foot {
-      font-size: 0.8rem;
+      font-size: var(--text-xs);
       margin-top: 1.5rem;
       padding-top: 1.2rem;
-      border-top: 1px solid var(--c-slate);
+      border-top: var(--line);
     }
 
     @media (max-width: 620px) {
       .board-row {
-        grid-template-columns: 28px 1fr 36px;
+        grid-template-columns: 40px 1fr 48px;
         grid-template-areas:
           'rank model val'
           'bar bar bar'

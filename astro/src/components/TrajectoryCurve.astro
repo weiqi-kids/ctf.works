@@ -27,7 +27,7 @@ const payload = JSON.stringify({ versions, runExistsMap, runHref });
     display: block;
   }
   .traj-cap {
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     margin-top: 0.5rem;
   }
   :global(.traj-dot) {
@@ -54,6 +54,12 @@ const payload = JSON.stringify({ versions, runExistsMap, runHref });
     diff_summary: string;
   }
 
+  // 字級嚴格 18px（design-tokens --text-xs，無例外）。
+  const FONT = 'ui-monospace, SF Mono, Menlo, monospace';
+  const FS = 18;
+  const H = 200;
+  const m = { t: 32, r: 24, b: 46, l: 60 };
+
   function initTraj(root: HTMLElement) {
     const dataEl = root.querySelector<HTMLElement>('[data-traj-data]');
     const svgEl = root.querySelector<SVGSVGElement>('[data-traj-svg]');
@@ -66,98 +72,109 @@ const payload = JSON.stringify({ versions, runExistsMap, runHref });
       JSON.parse(dataEl.textContent || '{}');
     if (!versions.length) return;
 
-    const W = 720,
-      H = 200,
-      m = { t: 28, r: 24, b: 40, l: 44 };
-    svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    const svg = select(svgEl);
+    // viewBox 寬 = 實測像素寬（floor，使 viewBox ≤ 實寬 → 縮放比 ≥ 1
+    // → font-size 18 渲染恆 ≥ 18px，無例外）。高度固定對齊 CSS 的 200px。
+    function draw() {
+      const W = Math.floor(svgEl!.getBoundingClientRect().width) || 720;
+      svgEl!.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      const svg = select(svgEl!);
+      svg.selectAll('*').remove();
 
-    const x = scalePoint<string>()
-      .domain(versions.map((v) => v.version))
-      .range([m.l, W - m.r])
-      .padding(0.5);
-    const y = scaleLinear().domain([0, 1]).range([H - m.b, m.t]);
+      const x = scalePoint<string>()
+        .domain(versions.map((v) => v.version))
+        .range([m.l, W - m.r])
+        .padding(0.5);
+      const y = scaleLinear().domain([0, 1]).range([H - m.b, m.t]);
 
-    // 格線
-    [0, 0.25, 0.5, 0.75, 1].forEach((t) => {
+      // 格線（色彩 = design-tokens hex fallback）
+      [0, 0.25, 0.5, 0.75, 1].forEach((t) => {
+        svg
+          .append('line')
+          .attr('x1', m.l)
+          .attr('x2', W - m.r)
+          .attr('y1', y(t))
+          .attr('y2', y(t))
+          .attr('stroke', '#d5d6da')
+          .attr('stroke-width', 1);
+        svg
+          .append('text')
+          .attr('x', m.l - 10)
+          .attr('y', y(t) + FS * 0.35)
+          .attr('text-anchor', 'end')
+          .attr('fill', '#5e6070')
+          .attr('font-size', FS)
+          .attr('font-family', FONT)
+          .text(`${Math.round(t * 100)}%`);
+      });
+
+      const ln = line<V>()
+        .x((d) => x(d.version)!)
+        .y((d) => y(d.flags_held_pct));
+
+      // 鍛造軌跡線（品牌橙 --color-accent）
       svg
-        .append('line')
-        .attr('x1', m.l)
-        .attr('x2', W - m.r)
-        .attr('y1', y(t))
-        .attr('y2', y(t))
-        .attr('stroke', '#262b33')
-        .attr('stroke-width', 1);
-      svg
-        .append('text')
-        .attr('x', m.l - 8)
-        .attr('y', y(t) + 3)
-        .attr('text-anchor', 'end')
-        .attr('fill', '#767e8c')
-        .attr('font-size', 10)
-        .attr('font-family', 'JetBrains Mono, monospace')
-        .text(`${Math.round(t * 100)}%`);
-    });
+        .append('path')
+        .attr('d', ln(versions) || '')
+        .attr('fill', 'none')
+        .attr('stroke', '#b86a2a')
+        .attr('stroke-width', 2.5)
+        .attr('stroke-linecap', 'round');
 
-    const ln = line<V>()
-      .x((d) => x(d.version)!)
-      .y((d) => y(d.flags_held_pct));
+      versions.forEach((v) => {
+        const cx = x(v.version)!;
+        const cy = y(v.flags_held_pct);
+        const linked = !!runExistsMap[v.run_id];
 
-    // 餘燼漸層線
-    svg
-      .append('path')
-      .attr('d', ln(versions) || '')
-      .attr('fill', 'none')
-      .attr('stroke', '#ff5a1f')
-      .attr('stroke-width', 2.5)
-      .attr('stroke-linecap', 'round');
+        const g = svg.append('g');
+        const dot = g
+          .append('circle')
+          .attr('class', 'traj-dot' + (linked ? ' linked' : ''))
+          .attr('cx', cx)
+          .attr('cy', cy)
+          .attr('r', 6)
+          .attr('fill', linked ? '#b86a2a' : '#8a8c98')
+          .attr('stroke', '#f5f6f8')
+          .attr('stroke-width', 2);
 
-    versions.forEach((v) => {
-      const cx = x(v.version)!;
-      const cy = y(v.flags_held_pct);
-      const linked = !!runExistsMap[v.run_id];
+        if (linked) {
+          const href = `${runHref.replace(/\/$/, '')}/${v.run_id}/`;
+          dot.on('click', () => (window.location.href = href));
+          dot.append('title').text(`${v.version} → 看回放 ${v.run_id}`);
+        } else {
+          dot.append('title').text(`${v.version} · ${v.run_id}（無匯出 run）`);
+        }
 
-      const g = svg.append('g');
-      const dot = g
-        .append('circle')
-        .attr('class', 'traj-dot' + (linked ? ' linked' : ''))
-        .attr('cx', cx)
-        .attr('cy', cy)
-        .attr('r', 6)
-        .attr('fill', linked ? '#ff7a3c' : '#3a414c')
-        .attr('stroke', '#0a0b0d')
-        .attr('stroke-width', 2);
+        // 版本標籤
+        svg
+          .append('text')
+          .attr('x', cx)
+          .attr('y', H - 16)
+          .attr('text-anchor', 'middle')
+          .attr('fill', linked ? '#b86a2a' : '#5e6070')
+          .attr('font-size', FS)
+          .attr('font-weight', 600)
+          .attr('font-family', FONT)
+          .text(v.version);
+        // 百分比標籤
+        svg
+          .append('text')
+          .attr('x', cx)
+          .attr('y', cy - 14)
+          .attr('text-anchor', 'middle')
+          .attr('fill', '#1e2030')
+          .attr('font-size', FS)
+          .attr('font-family', FONT)
+          .text(`${Math.round(v.flags_held_pct * 100)}%`);
+      });
+    }
 
-      if (linked) {
-        const href = `${runHref.replace(/\/$/, '')}/${v.run_id}/`;
-        dot.on('click', () => (window.location.href = href));
-        dot.append('title').text(`${v.version} → 看回放 ${v.run_id}`);
-      } else {
-        dot.append('title').text(`${v.version} · ${v.run_id}（無匯出 run）`);
-      }
-
-      // 版本標籤
-      svg
-        .append('text')
-        .attr('x', cx)
-        .attr('y', H - 22)
-        .attr('text-anchor', 'middle')
-        .attr('fill', linked ? '#ff7a3c' : '#aab2bf')
-        .attr('font-size', 12)
-        .attr('font-weight', 600)
-        .attr('font-family', 'JetBrains Mono, monospace')
-        .text(v.version);
-      // 百分比標籤
-      svg
-        .append('text')
-        .attr('x', cx)
-        .attr('y', cy - 12)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#e8eaed')
-        .attr('font-size', 11)
-        .attr('font-family', 'JetBrains Mono, monospace')
-        .text(`${Math.round(v.flags_held_pct * 100)}%`);
-    });
+    draw();
+    // 容器寬度變動（含從 display:none 切回顯示）時重畫，維持 1:1 像素比例。
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => draw()).observe(svgEl);
+    } else {
+      window.addEventListener('resize', draw);
+    }
   }
 
   document

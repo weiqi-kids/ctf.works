@@ -41,7 +41,7 @@ const recipeHasRun = runExists(run.run_id);
 ---
 
 <Layout
-  title={`回放 ${run.run_id} — FORGE ⚒ 攻防工坊`}
+  title={`回放 ${run.run_id}｜FORGE ⚒ 攻防工坊`}
   active="runs"
 >
   <section class="wrap replay-page">
@@ -56,9 +56,9 @@ const recipeHasRun = runExists(run.run_id);
           </span>
         </div>
         <div class="rh-meta mono muted">
-          <span>🛡 防禦:<b class="ember">{defLabel}</b> · {fp.defender.recipe}</span>
+          <span>🛡 防禦：<b class="ember">{defLabel}</b> · {fp.defender.recipe}</span>
           <span class="sep">·</span>
-          <span>🗡 攻擊:<b>{atkLabels}</b></span>
+          <span>🗡 攻擊：<b>{atkLabels}</b></span>
         </div>
         <div class="rh-cfg mono faint">
           round_time {fp.forcad.round_time}s · flag_lifetime{' '}
@@ -121,13 +121,13 @@ const recipeHasRun = runExists(run.run_id);
       margin-bottom: 1.6rem;
     }
     .back-link {
-      font-size: 0.82rem;
-      color: var(--c-mist);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
       padding-top: 0.3rem;
       white-space: nowrap;
     }
     .back-link:hover {
-      color: var(--c-ember-bright);
+      color: var(--color-accent);
     }
     .rh-title {
       display: flex;
@@ -136,33 +136,33 @@ const recipeHasRun = runExists(run.run_id);
       margin-bottom: 0.5rem;
     }
     .run-h1 {
-      font-size: clamp(1.3rem, 3.5vw, 2rem);
+      font-size: clamp(1.75rem, 3.5vw, var(--text-xl));
       font-weight: 700;
     }
     .rh-meta {
-      font-size: 0.86rem;
+      font-size: var(--text-sm);
       display: flex;
       gap: 0.6rem;
       flex-wrap: wrap;
       margin-bottom: 0.3rem;
     }
     .rh-meta b {
-      color: var(--c-bone);
+      color: var(--text-primary);
       font-weight: 600;
     }
     .sep {
-      color: var(--c-ash);
+      color: var(--text-muted);
     }
     .rh-cfg {
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
     }
 
     .rp-stats {
       display: flex;
       gap: 2rem;
       padding: 1.2rem 1.3rem;
-      background: linear-gradient(180deg, var(--c-iron), var(--c-void));
-      border: 1px solid var(--c-slate);
+      background: var(--bg-surface);
+      border: var(--line);
       border-radius: var(--radius);
       margin-bottom: 1.2rem;
       flex-wrap: wrap;
@@ -173,7 +173,7 @@ const recipeHasRun = runExists(run.run_id);
       gap: 0.25rem;
     }
     .stolen-val {
-      color: var(--c-stolen);
+      color: var(--color-critical);
     }
 
     .version-diff {
@@ -182,20 +182,20 @@ const recipeHasRun = runExists(run.run_id);
     }
     .vd-text {
       margin-top: 0.6rem;
-      font-size: 0.88rem;
-      color: var(--c-mist);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 0.6rem;
       flex-wrap: wrap;
     }
     .vd-bump {
-      color: var(--c-ember-bright);
-      border: 1px solid var(--c-ember-deep);
-      background: var(--c-coal-glow);
+      color: var(--color-accent);
+      border: 1px solid var(--color-accent);
+      background: var(--badge-high-bg);
       padding: 0.15rem 0.5rem;
-      border-radius: 2px;
-      font-size: 0.78rem;
+      border-radius: 0.25rem;
+      font-size: var(--text-xs);
     }
 
     .player-wrap {

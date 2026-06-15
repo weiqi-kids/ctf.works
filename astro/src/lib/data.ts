@@ -31,6 +31,7 @@ export interface Round {
   defense_events: DefenseEvent[];
 }
 export interface RunFingerprint {
+  source?: string;
   image_hash?: string;
   service_commit?: string;
   forcad: { round_time: number; flag_lifetime: number };
@@ -183,14 +184,21 @@ export function modelLabel(slug: string): string {
   return MODEL_LABELS[slug] ?? slug;
 }
 
-const SERVICE_LABELS: Record<string, string> = {
-  notes: 'notes',
-  filelocker: 'filelocker',
-  vault: 'vault',
+// 服務的中文說明（英文是實際服務名／slug，中文幫不熟的人看懂用途）。
+const SERVICE_CN: Record<string, string> = {
+  notes: '記事',
+  filelocker: '檔案櫃',
+  vault: '金庫',
 };
 export const SERVICES = ['notes', 'filelocker', 'vault'];
+/** 顯示成「英文（中文）」，例：notes（記事）。 */
 export function serviceLabel(s: string): string {
-  return SERVICE_LABELS[s] ?? s;
+  const cn = SERVICE_CN[s];
+  return cn ? `${s}（${cn}）` : s;
+}
+/** 只取中文說明，例：記事；無對照時回空字串。 */
+export function serviceCn(s: string): string {
+  return SERVICE_CN[s] ?? '';
 }
 
 export function pct(n: number): string {
